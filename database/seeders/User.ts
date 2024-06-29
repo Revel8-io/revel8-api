@@ -5,7 +5,7 @@ export default class extends BaseSeeder {
   public async run () {
     // create user with id: 1, username: 'smilingkylan'
     await User.create({
-      id: 1,
+      id: '1',
       username: 'smilingkylan'
     })
   }
