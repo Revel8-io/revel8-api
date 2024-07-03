@@ -28,4 +28,5 @@ Route.get('/', async () => {
 Route.resource('users', 'UsersController').apiOnly()
 
 // Notes
+Route.get('notes/author-target', 'NotesController.getAuthorTargetNotes')
 Route.resource('notes', 'NotesController').apiOnly()
