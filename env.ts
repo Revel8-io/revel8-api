@@ -28,4 +28,8 @@ export default Env.rules({
   PG_USER: Env.schema.string(),
   PG_PASSWORD: Env.schema.string.optional(),
   PG_DB_NAME: Env.schema.string(),
+
+  // Twitter Oauth
+  TWITTER_CLIENT_ID: Env.schema.string(),
+  TWITTER_CLIENT_SECRET: Env.schema.string(),
 })

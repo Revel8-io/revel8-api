@@ -30,3 +30,7 @@ Route.resource('users', 'UsersController').apiOnly()
 // Notes
 Route.get('notes/author-target', 'NotesController.getAuthorTargetNotes')
 Route.resource('notes', 'NotesController').apiOnly()
+
+// Twitter
+Route.get('twitter/request-token', 'TwitterController.getRequestToken')
+Route.get('twitter/callback', 'TwitterController.twitterCallback')
