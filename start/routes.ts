@@ -34,3 +34,4 @@ Route.resource('notes', 'NotesController').apiOnly()
 // Twitter
 Route.get('twitter/request-token', 'TwitterController.getRequestToken')
 Route.get('twitter/callback', 'TwitterController.twitterCallback')
+Route.get('twitter/validated', 'TwitterController.userValidationCheck')

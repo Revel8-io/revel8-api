@@ -1,9 +1,15 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Env from '@ioc:Adonis/Core/Env'
-import axios from 'axios'
 import Redis from '@ioc:Adonis/Addons/Redis'
 
 const LoginWithTwitter = require('login-with-twitter')
+
+type TwitterCallbackResponse = {
+  userName: string
+  userId: string
+  userToken: string
+  userTokenSecret: string
+}
 
 const tw = new LoginWithTwitter({
   consumerKey: Env.get('TWITTER_CONSUMER_KEY'),
@@ -18,7 +24,7 @@ export default class Twitter {
     console.log('rand', rand)
     const myFn = () => {
       return new Promise((resolve, reject) => {
-        tw.login((err, tokenSecret, url) => {
+        tw.login(async (err, tokenSecret, url) => {
           if (err) {
             reject(`Error in Twitter::getRequestToken: ${err}`)
           }
@@ -28,6 +34,7 @@ export default class Twitter {
           const oauthToken = searchParams.get('oauth_token')
           // save tokenSecret to redis
           Redis.set(`oauth_request:${oauthToken}`, tokenSecret, 'EX', 60 * 15)
+          await Redis.set(`is_validated:${oauthToken}`, '', 'EX', 60 * 15)
           resolve({
             tokenSecret,
             url
@@ -48,17 +55,34 @@ export default class Twitter {
     tw.callback({
       oauth_token,
       oauth_verifier
-    }, tokenSecret, (err, user) => {
-      if (err) {
-        console.error(`Error in Twitter::twitterCallback: ${err}`)
+    }, tokenSecret, async (error, user: TwitterCallbackResponse) => {
+      if (error) {
+        console.error(`Error in Twitter::twitterCallback: ${error}`)
         return response.json({
-          error: err
+          error
         })
       }
+      await Redis.set(`is_validated:${oauth_token}`, JSON.stringify(user), 'EX', 60 * 15)
       console.log('user', user)
       return response.json(user)
     })
     console.log('returning view')
     return view.render('twitter_callback')
+  }
+
+  public async userValidationCheck({ request, response }: HttpContextContract) {
+    const { oauth_token } = request.qs()
+    const serializedUser = await Redis.get(`is_validated:${oauth_token}`)
+    console.log('serializedUser', serializedUser)
+    if (!serializedUser) {
+      return response.json({
+        isValidated: false
+      })
+    }
+    const user = JSON.parse(serializedUser)
+    return response.json({
+      isValidated: true,
+      user
+    })
   }
 }
