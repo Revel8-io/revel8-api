@@ -21,7 +21,9 @@
     "./providers/AppProvider",
     "@adonisjs/core",
     "@adonisjs/ally",
-    "@adonisjs/lucid"
+    "@adonisjs/lucid",
+    "@adonisjs/redis",
+    "@adonisjs/view"
   ],
   "aceProviders": [
     "@adonisjs/repl"
@@ -39,5 +41,11 @@
   },
   "testProviders": [
     "@japa/preset-adonis/TestsProvider"
+  ],
+  "metaFiles": [
+    {
+      "pattern": "resources/views/**/*.edge",
+      "reloadServer": false
+    }
   ]
 }
