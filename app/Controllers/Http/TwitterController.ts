@@ -1,6 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Env from '@ioc:Adonis/Core/Env'
 import Redis from '@ioc:Adonis/Addons/Redis'
+import { base64_urlencode } from '../../../util'
 
 const LoginWithTwitter = require('login-with-twitter')
 
@@ -83,6 +84,27 @@ export default class Twitter {
     return response.json({
       isValidated: true,
       user
+    })
+  }
+
+  public async getRequestTokenOauth2({ request, response }: HttpContextContract) {
+    console.log('in Twitter::getRequestTokenOauth2')
+    const prefix = 'https://twitter.com/i/oauth2/authorize'
+    const code_challenge = base64_urlencode(Env.get('TWITTER_CODE_CHALLENGE'))
+    const params = {
+      response_type: 'code',
+      client_id: Env.get('TWITTER_CLIENT_ID'),
+      redirect_uri: Env.get('TWITTER_CALLBACK_URL_OAUTH2'),
+      scope: 'tweet.read users.read offline.access',
+      state: Env.get('TWITTER_STATE_SECRET'),
+      code_challenge,
+      code_challenge_method: 'plain'
+    }
+    const searchParams = new URLSearchParams(params)
+    const url = `${prefix}?${searchParams.toString()}`
+    console.log('getRequestTokenOauth2 url', url)
+    return response.json({
+      url
     })
   }
 }
