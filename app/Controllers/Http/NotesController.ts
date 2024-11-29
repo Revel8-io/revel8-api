@@ -9,18 +9,22 @@ export default class NotesController {
   }
 
   public async store({request, response}: HttpContextContract) {
+    console.log('request.all()', request.all())
     const createNoteSchema = schema.create({
       author: schema.string(),
       target: schema.string(),
-      note: schema.string()
+      note: schema.string(),
+      relatedTweetUrl: schema.string(),
+      relatedTweetId: schema.string(),
     })
 
     const payload = await request.validate({ schema: createNoteSchema })
+    console.log('payload', payload)
     // need to translate usernames to unique IDs
     await Note.create({
       ...payload,
       author: payload.author.toLowerCase(),
-      target: payload.target.toLowerCase()
+      target: payload.target.toLowerCase(),
     })
     return response.status(201)
   }

@@ -9,6 +9,9 @@ export default class extends BaseSchema {
       table.string('author')
       table.string('target')
       table.string('note')
+      table.string('target_id')
+      table.string('related_tweet_url')
+      table.string('related_tweet_id')
 
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL

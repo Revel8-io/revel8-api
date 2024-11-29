@@ -14,6 +14,12 @@ export default class Note extends BaseModel {
   @column()
   public note: string
 
+  @column()
+  public relatedTweetUrl: string
+  
+  @column()
+  public relatedTweetId: string
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
