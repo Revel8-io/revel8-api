@@ -29,6 +29,7 @@ Route.resource('users', 'UsersController').apiOnly()
 
 // Notes
 Route.get('notes/author-target', 'NotesController.getAuthorTargetNotes')
+Route.post('notes/store-get', 'NotesController.storeAndGetAuthorTargetNotes')
 Route.resource('notes', 'NotesController').apiOnly()
 
 // Twitter
