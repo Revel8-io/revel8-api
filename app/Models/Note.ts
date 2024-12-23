@@ -12,11 +12,13 @@ export default class Note extends BaseModel {
   public target: string
 
   @column()
+  public targetId: string
+  @column()
   public note: string
 
   @column()
   public relatedTweetUrl: string
-  
+
   @column()
   public relatedTweetId: string
 
