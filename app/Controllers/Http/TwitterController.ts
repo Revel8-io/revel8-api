@@ -1,7 +1,9 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Env from '@ioc:Adonis/Core/Env'
 import Redis from '@ioc:Adonis/Addons/Redis'
-import { base64_urlencode } from '../../../util'
+import crypto from 'node:crypto'
+import qs from 'qs'
+import axios from 'axios'
 
 const LoginWithTwitter = require('login-with-twitter')
 
@@ -87,24 +89,122 @@ export default class Twitter {
     })
   }
 
-  public async getRequestTokenOauth2({ request, response }: HttpContextContract) {
-    console.log('in Twitter::getRequestTokenOauth2')
+  public async getOauthUrl({ response }: HttpContextContract) {
+    console.log('in Twitter::getOauthUrl')
     const prefix = 'https://twitter.com/i/oauth2/authorize'
-    const code_challenge = base64_urlencode(Env.get('TWITTER_CODE_CHALLENGE'))
+    const { challenge: code_challenge, verifier: code_verifier} = await generatePKCE()
+    const state = await generateRandomString(38)
     const params = {
       response_type: 'code',
       client_id: Env.get('TWITTER_CLIENT_ID'),
       redirect_uri: Env.get('TWITTER_CALLBACK_URL_OAUTH2'),
       scope: 'tweet.read users.read offline.access',
-      state: Env.get('TWITTER_STATE_SECRET'),
+      state,
       code_challenge,
-      code_challenge_method: 'plain'
+      code_challenge_method: 'S256'
     }
     const searchParams = new URLSearchParams(params)
     const url = `${prefix}?${searchParams.toString()}`
-    console.log('getRequestTokenOauth2 url', url)
+    console.log('Twitter::getOauthUrl url', url)
+    // save code_verifier to redis
+    Redis.set(`code_verifier:${state}`, code_verifier, 'EX', 60 * 15)
     return response.json({
       url
     })
+
   }
+
+  public async exchangeAuthCodeForAccessToken({ request, response }: HttpContextContract) {
+    console.log('in Twitter::exchangeAuthCodeForAccessToken')
+    const { authCode, state } = request.qs()
+    const codeVerifier = await Redis.get(`code_verifier:${state}`)
+
+    if (!codeVerifier) {
+      return response.status(400).json({ error: 'Code verifier not found' })
+    }
+
+    const redirectURI = `${Env.get('EXTENSION_ORIGIN')}/twitter-auth-success.html`
+    const params = {
+      client_id: Env.get('TWITTER_CLIENT_ID'),
+      client_secret: Env.get('TWITTER_CLIENT_SECRET'),
+      code: authCode,
+      grant_type: 'authorization_code',
+      redirect_uri: Env.get('TWITTER_CALLBACK_URL_OAUTH2'),
+      code_verifier: codeVerifier
+    }
+
+    const twitterURL = `https://api.twitter.com/2/oauth2/token`
+    console.log('Twitter::exchangeAuthCodeForAccessToken params', JSON.stringify(Object.keys(params)))
+
+    try {
+      const formData = qs.stringify(params)
+      const clientIdAndSecret = `${Env.get('TWITTER_CLIENT_ID')}:${Env.get('TWITTER_CLIENT_SECRET')}`
+      console.log('clientIdAndSecret', clientIdAndSecret)
+      // now encode it in base64
+      const base64EncodedClientIdAndSecret = Buffer.from(clientIdAndSecret).toString('base64')
+      console.log('base64EncodedClientIdAndSecret', base64EncodedClientIdAndSecret)
+      const basicAuthValue = `Basic ${base64EncodedClientIdAndSecret}`
+      const { data } = await axios.post(twitterURL, params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': basicAuthValue
+        }
+      })
+      console.log('Twitter::exchangeAuthCodeForAccessToken data', data)
+
+      // Securely handle the token here. Return only what's needed to the client.
+      return response.json({
+        // Example: only return token_type and access_token
+        token_type: data.token_type,
+        access_token: data.access_token
+      })
+    } catch (error) {
+      console.error('Twitter::exchangeAuthCodeForAccessToken error', error)
+      console.error('Twitter::exchangeAuthCodeForAccessToken error', error.response?.data || error.message)
+      return response.status(error.response?.status || 500).json({
+        error: `Error in Twitter::exchangeAuthCodeForAccessToken: ${error.message}`
+      })
+    } finally {
+      // Optionally clean up code_verifier from Redis
+      await Redis.del(`code_verifier:${state}`)
+    }
+  }
+}
+// ZlljSjU3bklTb0RtcEotTkNRbHd2T1cyYlgwZnJpbDJmdXBDQmpUTzd2Rmp4OjE3MzU0MTIyMTA4NjE6MTowOmFjOjE
+// pLC6HVCJYweaSlVp6zR9OigKlqm5Yyp2y5ooyJqBBH8
+// async function generateCodeVerifier(): Promise<string> {
+//   const array = new Uint32Array(56/4);
+//   const randomValues = crypto.getRandomValues(array);
+//   const randomValueString = String.fromCharCode.apply(null, randomValues)
+//   const randomValueStringBase64 = Buffer.from(randomValueString).toString('base64')
+//   const finalValue = randomValueStringBase64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').substr(0, 43);
+//   return finalValue
+// }
+
+async function generateCodeChallenge(codeVerifier: string): Promise<string> {
+  var digest = await crypto.subtle.digest("SHA-256",
+    new TextEncoder().encode(codeVerifier));
+
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+}
+
+async function generatePKCE(): Promise<{ verifier: string, challenge: string }> {
+  const verifier = await generateRandomString(43);
+  const challenge = await generateCodeChallenge(verifier)
+  return {
+    verifier,
+    challenge
+  }
+}
+
+async function generateRandomString(length: number): Promise<string> {
+  var text = "";
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+  for (var i = 0; i < length; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+
+  return text;
 }

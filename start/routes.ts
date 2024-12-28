@@ -36,6 +36,8 @@ Route.resource('notes', 'NotesController').apiOnly()
 Route.get('twitter/request-token', 'TwitterController.getRequestToken')
 Route.get('twitter/callback', 'TwitterController.twitterCallback')
 Route.get('twitter/validated', 'TwitterController.userValidationCheck')
+Route.get('twitter/oauth-url', 'TwitterController.getOauthUrl')
+Route.get('twitter/access-token', 'TwitterController.exchangeAuthCodeForAccessToken')
 
 // oauth2
 Route.get('twitter/request-oauth2-url', 'TwitterController.getRequestTokenOauth2')
