@@ -2,8 +2,8 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Env from '@ioc:Adonis/Core/Env'
 import Redis from '@ioc:Adonis/Addons/Redis'
 import crypto from 'node:crypto'
-import qs from 'qs'
 import axios from 'axios'
+import { AccessTokenResponse, UserDataResponse } from 'types'
 
 const LoginWithTwitter = require('login-with-twitter')
 
@@ -123,7 +123,6 @@ export default class Twitter {
       return response.status(400).json({ error: 'Code verifier not found' })
     }
 
-    const redirectURI = `${Env.get('EXTENSION_ORIGIN')}/twitter-auth-success.html`
     const params = {
       client_id: Env.get('TWITTER_CLIENT_ID'),
       client_secret: Env.get('TWITTER_CLIENT_SECRET'),
@@ -137,26 +136,31 @@ export default class Twitter {
     console.log('Twitter::exchangeAuthCodeForAccessToken params', JSON.stringify(Object.keys(params)))
 
     try {
-      const formData = qs.stringify(params)
       const clientIdAndSecret = `${Env.get('TWITTER_CLIENT_ID')}:${Env.get('TWITTER_CLIENT_SECRET')}`
       console.log('clientIdAndSecret', clientIdAndSecret)
       // now encode it in base64
       const base64EncodedClientIdAndSecret = Buffer.from(clientIdAndSecret).toString('base64')
       console.log('base64EncodedClientIdAndSecret', base64EncodedClientIdAndSecret)
       const basicAuthValue = `Basic ${base64EncodedClientIdAndSecret}`
-      const { data } = await axios.post(twitterURL, params, {
+      const { data: accessTokenResponse }: { data: AccessTokenResponse } = await axios.post(twitterURL, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Authorization': basicAuthValue
         }
       })
-      console.log('Twitter::exchangeAuthCodeForAccessToken data', data)
-
+      console.log('Twitter::exchangeAuthCodeForAccessToken accessTokenResponse', accessTokenResponse)
+      const { data: userData }: { data: UserDataResponse } = await axios.get('https://api.twitter.com/2/users/me', {
+        headers: {
+          'Authorization': `Bearer ${accessTokenResponse.access_token}`
+        }
+      })
+      console.log('Twitter::exchangeAuthCodeForAccessToken userData', userData)
       // Securely handle the token here. Return only what's needed to the client.
       return response.json({
-        // Example: only return token_type and access_token
-        token_type: data.token_type,
-        access_token: data.access_token
+        ...accessTokenResponse,
+        ...userData.data,
+        expires_in: parseInt(Env.get('TWITTER_AUTH_EXPIRATION')) * 1000,
+        created_at: new Date().getTime()
       })
     } catch (error) {
       console.error('Twitter::exchangeAuthCodeForAccessToken error', error)
