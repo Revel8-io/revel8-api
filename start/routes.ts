@@ -29,9 +29,15 @@ Route.resource('users', 'UsersController').apiOnly()
 
 // Notes
 Route.get('notes/author-target', 'NotesController.getAuthorTargetNotes')
+Route.post('notes/store-get', 'NotesController.storeAndGetAuthorTargetNotes')
 Route.resource('notes', 'NotesController').apiOnly()
 
 // Twitter
 Route.get('twitter/request-token', 'TwitterController.getRequestToken')
 Route.get('twitter/callback', 'TwitterController.twitterCallback')
 Route.get('twitter/validated', 'TwitterController.userValidationCheck')
+Route.get('twitter/oauth-url', 'TwitterController.getOauthUrl')
+Route.get('twitter/access-token', 'TwitterController.exchangeAuthCodeForAccessToken')
+
+// oauth2
+Route.get('twitter/request-oauth2-url', 'TwitterController.getRequestTokenOauth2')
