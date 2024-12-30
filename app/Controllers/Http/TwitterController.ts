@@ -148,20 +148,22 @@ export default class Twitter {
           'Authorization': basicAuthValue
         }
       })
-      console.log('Twitter::exchangeAuthCodeForAccessToken accessTokenResponse', accessTokenResponse)
       const { data: userData }: { data: UserDataResponse } = await axios.get('https://api.twitter.com/2/users/me', {
         headers: {
           'Authorization': `Bearer ${accessTokenResponse.access_token}`
         }
       })
-      console.log('Twitter::exchangeAuthCodeForAccessToken userData', userData)
       // Securely handle the token here. Return only what's needed to the client.
-      return response.json({
+      const createdAt = new Date().getTime()
+      const expires = createdAt + (parseInt(Env.get('TWITTER_AUTH_EXPIRATION')) * 1000)
+      const output = {
         ...accessTokenResponse,
         ...userData.data,
-        expires_in: parseInt(Env.get('TWITTER_AUTH_EXPIRATION')) * 1000,
-        created_at: new Date().getTime()
-      })
+        created_at: createdAt,
+        expires_at: expires
+      }
+      console.log('Twitter::exchangeAuthCodeForAccessToken output', output)
+      return response.json(output)
     } catch (error) {
       console.error('Twitter::exchangeAuthCodeForAccessToken error', error)
       console.error('Twitter::exchangeAuthCodeForAccessToken error', error.response?.data || error.message)
@@ -174,16 +176,6 @@ export default class Twitter {
     }
   }
 }
-// ZlljSjU3bklTb0RtcEotTkNRbHd2T1cyYlgwZnJpbDJmdXBDQmpUTzd2Rmp4OjE3MzU0MTIyMTA4NjE6MTowOmFjOjE
-// pLC6HVCJYweaSlVp6zR9OigKlqm5Yyp2y5ooyJqBBH8
-// async function generateCodeVerifier(): Promise<string> {
-//   const array = new Uint32Array(56/4);
-//   const randomValues = crypto.getRandomValues(array);
-//   const randomValueString = String.fromCharCode.apply(null, randomValues)
-//   const randomValueStringBase64 = Buffer.from(randomValueString).toString('base64')
-//   const finalValue = randomValueStringBase64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').substr(0, 43);
-//   return finalValue
-// }
 
 async function generateCodeChallenge(codeVerifier: string): Promise<string> {
   var digest = await crypto.subtle.digest("SHA-256",
