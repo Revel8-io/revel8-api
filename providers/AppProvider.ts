@@ -1,4 +1,5 @@
 import type { ApplicationContract } from '@ioc:Adonis/Core/Application'
+import { populateIPFSContent, testPinataAuth } from './routines'
 
 export default class AppProvider {
   constructor(protected app: ApplicationContract) {}
@@ -9,10 +10,15 @@ export default class AppProvider {
 
   public async boot() {
     // IoC container is ready
+
   }
 
   public async ready() {
-    // App is ready
+		await import('@ioc:Adonis/Lucid/Database')
+		await import('@ioc:Adonis/Addons/Redis')
+		await import('@ioc:Adonis/Core/Env')
+    testPinataAuth()
+    // populateIPFSContent()
   }
 
   public async shutdown() {
