@@ -1,7 +1,7 @@
 import { PinataSDK } from "pinata-web3";
 import Env from '@ioc:Adonis/Core/Env'
 
-const pinata = new PinataSDK({
+export const pinata = new PinataSDK({
   pinataJwt: Env.get('PINATA_JWT'),
   pinataGateway: Env.get('PINATA_GATEWAY'),
   // add gateway key?
@@ -11,8 +11,6 @@ export const testPinataAuth = async () => {
   const { message } = await pinata.testAuthentication()
   console.log('message', message)
 }
-
-
 
 export const populateIPFSContent = async () => {
   testPinataAuth()
