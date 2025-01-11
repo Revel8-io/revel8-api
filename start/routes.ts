@@ -41,3 +41,6 @@ Route.get('twitter/access-token', 'TwitterController.exchangeAuthCodeForAccessTo
 
 // oauth2
 Route.get('twitter/request-oauth2-url', 'TwitterController.getRequestTokenOauth2')
+
+// pinata
+Route.post('ipfs/upload', 'IpfsController.create')
