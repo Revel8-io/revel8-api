@@ -17,8 +17,8 @@ export default class AppProvider {
 		await import('@ioc:Adonis/Lucid/Database')
 		await import('@ioc:Adonis/Addons/Redis')
 		await import('@ioc:Adonis/Core/Env')
-    testPinataAuth()
-    // populateIPFSContent()
+    // testPinataAuth()
+    populateIPFSContent()
   }
 
   public async shutdown() {

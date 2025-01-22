@@ -41,6 +41,9 @@ importers:
       pg:
         specifier: ^8.12.0
         version: 8.12.0
+      pinata:
+        specifier: ^1.10.1
+        version: 1.10.1
       pinata-web3:
         specifier: ^0.5.4
         version: 0.5.4
@@ -2632,6 +2635,9 @@ packages:
 
   pinata-web3@0.5.4:
     resolution: {integrity: sha512-w98wheqt+2LRzNgU5+xZaPP3JZA8Cp33O647zU6AF0zYk15py9ti8g2Bl/7rwXyua3CN+EzHgzcu1wgKnhSZ8w==}
+
+  pinata@1.10.1:
+    resolution: {integrity: sha512-/nB9C7zCEnC5YW+deO5FGX5RizSN23JXvbUdDLfzgwtKj4m5JC8ScuLkQ+iirfvpPQGQFQ/X5mR3aC/npTjFDA==}
 
   pino-abstract-transport@1.2.0:
     resolution: {integrity: sha512-Guhh8EZfPCfH+PMXAb6rKOjGQEoy0xlAIn+irODG5kgfYV+BQ0rGYYWTIel3P5mmyXqkYkPmdIkywsn6QKUR1Q==}
@@ -6353,6 +6359,11 @@ snapshots:
       node-fetch: 3.3.2
     transitivePeerDependencies:
       - debug
+
+  pinata@1.10.1:
+    dependencies:
+      is-ipfs: 8.0.4
+      node-fetch: 3.3.2
 
   pino-abstract-transport@1.2.0:
     dependencies:

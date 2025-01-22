@@ -1,19 +1,28 @@
 import { PinataSDK } from "pinata-web3";
 import Env from '@ioc:Adonis/Core/Env'
+import axios from "axios";
 
 export const pinata = new PinataSDK({
   pinataJwt: Env.get('PINATA_JWT'),
-  pinataGateway: Env.get('PINATA_GATEWAY'),
-  pinataGatewayKey: Env.get('PINATA_GATEWAY_KEY'),
+  pinataGateway: Env.get('PINATA_GATEWAY')
 });
 
+pinata.testAuthentication().then(resp => {
+  console.log('resp', resp)
+})
+
 export const testPinataAuth = async () => {
-  const { message } = await pinata.testAuthentication()
-  console.log('message', message)
+  const { data } = await axios.get('https://api.pinata.cloud/data/testAuthentication', {
+    headers: {
+      'authorization': `Bearer ${Env.get('PINATA_JWT')}`,
+      accept: 'application/json'
+    }
+  })
+  console.log('message', data)
 }
 
 export const populateIPFSContent = async () => {
-  testPinataAuth()
+  // testPinataAuth()
   console.log('populateIPFSContent')
   const { default: Database } = await import('@ioc:Adonis/Lucid/Database')
   const { default: Redis } = await import('@ioc:Adonis/Addons/Redis')
@@ -25,121 +34,115 @@ export const populateIPFSContent = async () => {
   // for each row, get the contents from the ipfs url and store it in atom_ipfs_data.contents
   // update atom_ipfs_data with the new contents
 
-  const rows = await Database.from('Atom')
-    .select('Atom.*', 'atom_ipfs_data.*', 'Atom.id as atom_table_id')
-    .fullOuterJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
-    .where('Atom.data', 'like', 'ipfs://%')
-    .orWhere('Atom.data', 'like', 'Qm%')
-    .andWhereNull('atom_ipfs_data.contents')
+  const rows = await Database
+  .from('Atom')
+  .select('Atom.*', 'atom_ipfs_data.*', 'Atom.id as atom_table_id')
+  .fullOuterJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+  .where((query) => {
+    query
+      .where('Atom.data', 'like', 'ipfs://%')
+      .orWhere('Atom.data', 'like', 'Qm%')
+      .orWhere('Atom.data', 'like', 'bafk%')
+  })
+  .whereNull('atom_ipfs_data.contents')
+  .where(query => {
+    query.where('atom_ipfs_data.attempts', '<', 5)
+    .orWhereNull('atom_ipfs_data.attempts')
+  })
+  .orderBy('Atom.id', 'asc')
 
   console.log('rows.length', rows.length)
 
+  const pinataGatewayKey = Env.get('PINATA_GATEWAY_KEY')
+  console.log('pinataGatewayKey', pinataGatewayKey)
+
   const fetchIPFSContent = async (row: any) => {
-    return new Promise(async (resolve, reject) => {
-      let hash = ''
-      setTimeout(reject, 10000)
-      try {
-        setTimeout(reject, 10000)
-        hash = row.data.split('/').pop()
-        const contents = await pinata.gateways.get(hash)
-        resolve(contents)
-      } catch (_err) {
-        console.error('Error getting contents from IPFS', hash)
-        reject()
-      } finally {
-        resolve(void 0)
-      }
+    let hash = ''
+    hash = row.data.split('/').pop()
+    console.log('hash', hash)
+
+    const { data } = await axios.get(`https://blush-legal-emu-115.mypinata.cloud/ipfs/${hash}`, {
+      params: {
+        pinataGatewayToken: pinataGatewayKey
+      },
+      timeout: 10000 // 10 seconds timeout
     })
+
+    return data
   }
 
-  for (const row of rows) {
-    console.log('row', row)
+  const processRow = async (row: any) => {
+    let contents
+    let isError = false
+    let is429 = false
+    console.log('row', row.atom_table_id, row.data, row.attempts)
     try {
-      const contents = await fetchIPFSContent(row)
-        // insert the contents into atom_ipfs_data
-        console.log('row.id', row.id)
-        const existingRows  = await Database.query().from('atom_ipfs_data').where('atom_id', row.atom_table_id)
-        console.log('existingRows.length', existingRows.length)
-        if (existingRows.length > 0) {
-          // update existing row
-          await Database.query()
-            .from('atom_ipfs_data')
-            .where('atom_id', row.atom_table_id)
-            .update({ contents });
-          console.log('finished updating')
-        } else {
-          await Database
-            .insertQuery()
-            .table('atom_ipfs_data')
-            .insert({ atom_id: row.atom_table_id, contents });
-          console.log('finished inserting')
-        }
+      contents = await fetchIPFSContent(row)
     } catch (err) {
-      console.error('Error getting contents from IPFS', err)
+      console.error('Error getting contents from Atom.id', row.atom_table_id, err.message)
+      isError = true
+      // console.log('err.response.status', err.response?.status)
+      if (err.response?.status === 429) {
+        console.log('Rate limit exceeded, sleeping for 10 seconds')
+        is429 = true
+      }
+    } finally {
+      const existingRows = await Database.query()
+        .from('atom_ipfs_data')
+        .where('atom_id', row.atom_table_id)
+      // console.log('existingRows.length', existingRows.length)
+
+      if (existingRows.length > 0) {
+        await Database.query()
+          .from('atom_ipfs_data')
+          .where('atom_id', row.atom_table_id)
+          .update({ contents, attempts: isError ? existingRows[0].attempts + 1 : 1 });
+        console.log('finished updating')
+      } else {
+        await Database
+          .insertQuery()
+          .table('atom_ipfs_data')
+          .insert({ atom_id: row.atom_table_id, contents });
+        console.log('finished inserting')
+      }
+      if (is429) {
+        await sleep(30000)
+      }
     }
   }
 
+  // New concurrent processing implementation
+  const concurrentLimit = 5;
+  const queue = rows.slice(); // Create a copy of the rows array
+  const activePromises = new Set();
 
+  const processNext = async () => {
+    if (queue.length === 0) return;
 
-  // Semaphore implementation to limit concurrent operations
-//   class Semaphore {
-//     private running = 0;
-//     private queue: (() => void)[] = [];
+    const row = queue.shift()!;
+    const promise = processRow(row)
+      .catch(err => console.error('Failed to process row:', err))
+      .finally(() => {
+        activePromises.delete(promise);
+        // Process next item if queue is not empty
+        if (queue.length > 0) {
+          processNext();
+        }
+      });
 
-//     constructor(private maxConcurrent: number) {}
+    activePromises.add(promise);
+  };
 
-//     async acquire(): Promise<void> {
-//       if (this.running < this.maxConcurrent) {
-//         this.running++;
-//         return;
-//       }
+  // Initialize processing with concurrentLimit items
+  for (let i = 0; i < Math.min(concurrentLimit, rows.length); i++) {
+    await sleep(1000)
+    processNext();
+  }
 
-//       return new Promise<void>(resolve => {
-//         this.queue.push(resolve);
-//       });
-//     }
+  // Wait for all processing to complete
+  while (activePromises.size > 0) {
+    await Promise.race(activePromises);
+  }
+}
 
-//     release(): void {
-//       this.running--;
-//       const next = this.queue.shift();
-//       if (next) {
-//         this.running++;
-//         next();
-//       }
-//     }
-//   }
-
-//   const semaphore = new Semaphore(5);
-//   const promises = rows.map(async (row) => {
-//     await semaphore.acquire();
-//     let hash = ''
-//     try {
-//       hash = row.data.split('/').pop()
-//       const contents = await pinata.gateways.get(hash)
-//       // insert the contents into atom_ipfs_data
-//       const existingRows  = await Database.query().from('atom_ipfs_data').where('atom_id', row.id)
-//       console.log('existingRows.length', existingRows.length)
-//       if (existingRows.length > 0) {
-//         // update existing row
-//         await Database.query()
-//           .from('atom_ipfs_data')
-//           .where('atom_id', row.id)
-//           .update({ contents });
-//         console.log('finished updating')
-//       } else {
-//         await Database
-//           .insertQuery()
-//           .table('atom_ipfs_data')
-//           .insert({ atom_id: row.id, contents });
-//         console.log('finished inserting')
-//       }
-//     } catch (_err) {
-//       console.error('Error getting contents from IPFS', hash)
-//     } finally {
-//       semaphore.release();
-//     }
-//   });
-
-//   await Promise.all(promises);
-// }
-
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

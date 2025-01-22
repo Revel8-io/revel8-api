@@ -8,7 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
       table.integer('atom_id').unsigned()
       table.jsonb('contents')
-
+      table.integer('attempts').defaultTo(1)
       table.foreign('atom_id').references('Atom.id')
 
 
