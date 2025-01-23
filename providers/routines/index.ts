@@ -21,6 +21,30 @@ export const testPinataAuth = async () => {
   console.log('message', data)
 }
 
+// export const watchForUpdates = async () => {
+//   const { Client } = require('pg');
+//   const PG_USER = Env.get('PG_USER')
+//   const PG_PASSWORD = Env.get('PG_PASSWORD')
+//   const PG_HOST = Env.get('PG_HOST')
+//   const PG_PORT = Env.get('PG_PORT')
+//   const PG_DB_NAME = Env.get('PG_DB_NAME')
+//   const connectionString = `postgresql://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DB_NAME}`
+//   const client = new Client({
+//     connectionString,
+//   });
+
+//   client.connect();
+
+//   client.on('notification', (msg) => {
+//     console.log('Notification received:', msg.payload);
+//     // const data = JSON.parse(msg.payload);
+//     // Handle the notification (e.g., send a WebSocket update)
+//   });
+
+//   // listen to updates for atom_ipfs_data table
+//   client.query('LISTEN table_update');
+// }
+
 export const populateIPFSContent = async () => {
   // testPinataAuth()
   console.log('populateIPFSContent')
@@ -74,7 +98,6 @@ export const populateIPFSContent = async () => {
   const processRow = async (row: any) => {
     let contents
     let isError = false
-    let is429 = false
     console.log('row', row.atom_table_id, row.data, row.attempts)
     try {
       contents = await fetchIPFSContent(row)
@@ -84,30 +107,35 @@ export const populateIPFSContent = async () => {
       // console.log('err.response.status', err.response?.status)
       if (err.response?.status === 429) {
         console.log('Rate limit exceeded, sleeping for 10 seconds')
-        is429 = true
+        return await sleep(30000)
       }
-    } finally {
-      const existingRows = await Database.query()
+    }
+    try {
+      const parsedContents = JSON.parse(contents)
+      console.log('parsedContents', !!parsedContents)
+    } catch (err) {
+      console.error('Error parsing contents from Atom.id', row.atom_table_id, err.message)
+      contents = null
+      isError = true
+    }
+
+    const existingRows = await Database.query()
+      .from('atom_ipfs_data')
+      .where('atom_id', row.atom_table_id)
+    // console.log('existingRows.length', existingRows.length)
+
+    if (existingRows.length > 0) {
+      await Database.query()
         .from('atom_ipfs_data')
         .where('atom_id', row.atom_table_id)
-      // console.log('existingRows.length', existingRows.length)
-
-      if (existingRows.length > 0) {
-        await Database.query()
-          .from('atom_ipfs_data')
-          .where('atom_id', row.atom_table_id)
-          .update({ contents, attempts: isError ? existingRows[0].attempts + 1 : 1 });
-        console.log('finished updating')
-      } else {
-        await Database
-          .insertQuery()
-          .table('atom_ipfs_data')
-          .insert({ atom_id: row.atom_table_id, contents });
-        console.log('finished inserting')
-      }
-      if (is429) {
-        await sleep(30000)
-      }
+        .update({ contents, attempts: isError ? existingRows[0].attempts + 1 : 1 });
+      console.log('finished updating')
+    } else {
+      await Database
+        .insertQuery()
+        .table('atom_ipfs_data')
+        .insert({ atom_id: row.atom_table_id, contents });
+      console.log('finished inserting')
     }
   }
 

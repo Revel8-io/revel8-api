@@ -65,7 +65,6 @@ export default class NotesController {
     })
     await request.validate({ schema: getAuthorTargetNotesSchema })
     const result = await this.retrieveAuthorTargetNotes(author, target)
-    console.log('result', result)
     return response.json(result)
   }
 

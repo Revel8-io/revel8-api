@@ -15,7 +15,7 @@ export default class IpfsController {
         }
       }
       const unixTimestamp = Math.floor(Date.now() / 1000)
-      const filename = `${noteKeys[note].filenameKey || '_'}-${xID}-${xUsername}-${unixTimestamp}`
+      const filename = `${noteKeys[note].filenameKey || '_'}-${xUsername}-${xID}-${unixTimestamp}`
 
       const { IpfsHash, PinSize, Timestamp} = await pinata.upload.json({
         content: JSON.stringify(request.body()),
