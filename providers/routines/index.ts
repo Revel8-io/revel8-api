@@ -96,13 +96,13 @@ export const populateIPFSContent = async () => {
   }
 
   const processRow = async (row: any) => {
-    let contents
+    let data
     let isError = false
     console.log('row', row.atom_table_id, row.data, row.attempts)
     try {
-      contents = await fetchIPFSContent(row)
+      data = await fetchIPFSContent(row)
     } catch (err) {
-      console.error('Error getting contents from Atom.id', row.atom_table_id, err.message)
+      console.error('Error getting data from Atom.id', row.atom_table_id, err.message)
       isError = true
       // console.log('err.response.status', err.response?.status)
       if (err.response?.status === 429) {
@@ -110,20 +110,18 @@ export const populateIPFSContent = async () => {
         return await sleep(30000)
       }
     }
-    try {
-      const parsedContents = JSON.parse(contents)
-      console.log('parsedContents', !!parsedContents)
-    } catch (err) {
-      console.error('Error parsing contents from Atom.id', row.atom_table_id, err.message)
-      contents = null
-      isError = true
-    }
+    console.log('data', data)
+    console.log('typeof data', typeof data)
 
     const existingRows = await Database.query()
       .from('atom_ipfs_data')
       .where('atom_id', row.atom_table_id)
     // console.log('existingRows.length', existingRows.length)
 
+    let contents = data
+    if (data?.content) {
+      contents = { filename: data.name, ...data.content }
+    }
     if (existingRows.length > 0) {
       await Database.query()
         .from('atom_ipfs_data')
