@@ -27,23 +27,14 @@ export default class AtomsController {
             LEFT JOIN "atom_ipfs_data"
             ON "Triple"."subjectId" = "atom_ipfs_data"."atom_id"
             WHERE
-                "Triple"."predicateId" = '${CONFIG.IS_ATOM}'
-                AND "Triple"."objectId" = '${CONFIG.IS_RELEVANT_X_ATOM}'
+                "Triple"."predicateId" = '${IS_ATOM}'
+                AND "Triple"."objectId" = '${IS_RELEVANT_X_ATOM}'
             ORDER BY
               GREATEST (
                 (("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC) / POWER(10, 18)),
                 (("counterVault"."totalShares"::NUMERIC / POWER(10, 18)) * ("counterVault"."currentSharePrice"::NUMERIC) / POWER(10, 18))
               )
             DESC LIMIT 20;`)
-    console.log('rows', rows)
-    // const relevantAtomIds = []
-    // rows.forEach((row) => {
-    //   relevantAtomIds.push(row.subjectId)
-    // })
-
-    // // console.log('relevantAtomIds', relevantAtomIds)
-    // const atomsData = await Database.query().from('atom_ipfs_data').whereIn('atom_id', relevantAtomIds)
-    // console.log('atomsData', atomsData)
     return response.json(rows)
   }
 }
