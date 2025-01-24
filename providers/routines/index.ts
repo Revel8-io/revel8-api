@@ -120,8 +120,15 @@ export const populateIPFSContent = async () => {
 
     let contents = data
     if (data?.content) {
-      contents = { filename: data.name, ...data.content }
+      let moreContent
+      try {
+        moreContent = JSON.parse(data.content)
+      } catch (err) {
+        moreContent = data.content
+      }
+      contents = { filename: data.name, ...moreContent }
     }
+
     if (existingRows.length > 0) {
       await Database.query()
         .from('atom_ipfs_data')
