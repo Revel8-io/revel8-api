@@ -48,3 +48,4 @@ Route.post('ipfs/upload', 'IpfsController.create')
 // atoms
 // can refactor later
 Route.get('atoms/most-relevant-x', 'AtomsController.getMostRelevantXAtoms')
+Route.get('x/user-atoms', 'AtomsController.getXUserAtom')

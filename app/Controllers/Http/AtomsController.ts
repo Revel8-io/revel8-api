@@ -37,5 +37,20 @@ export default class AtomsController {
             DESC LIMIT 20;`)
     return response.json(rows)
   }
+
+  public async getXUserAtom({ request, response }: HttpContextContract) {
+    const { username } = request.all()
+    // get atom_ipfs_data where contents.xUsername = username
+    // then join Atom table on atom_id
+    const rows = await Database.query()
+      .from('atom_ipfs_data')
+      .whereRaw('contents @> ?::jsonb', [JSON.stringify({ xUsername: username })])
+      .join('Atom', 'atom_ipfs_data.atom_id', 'Atom.id')
+      .join('Vault', 'Vault.id', 'Atom.vaultId')
+      .select('atom_ipfs_data.*', 'Vault.totalShares', 'Vault.currentSharePrice', 'Vault.positionCount')
+      .orderByRaw('("Vault"."totalShares" / POWER(10, 18)) * ("Vault"."currentSharePrice" / POWER(10, 18)) DESC')
+    console.log('rows', rows)
+    return response.json(rows)
+  }
 }
 
