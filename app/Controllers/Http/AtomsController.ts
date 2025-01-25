@@ -49,7 +49,7 @@ export default class AtomsController {
       .join('Vault', 'Vault.id', 'Atom.vaultId')
       .select('atom_ipfs_data.*', 'Vault.totalShares', 'Vault.currentSharePrice', 'Vault.positionCount')
       .orderByRaw('("Vault"."totalShares" / POWER(10, 18)) * ("Vault"."currentSharePrice" / POWER(10, 18)) DESC')
-    console.log('rows', rows)
+    console.log(`getXUserAtom for ${username} rows.length`, rows.length)
     return response.json(rows)
   }
 }
