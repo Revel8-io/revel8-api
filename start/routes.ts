@@ -44,6 +44,7 @@ Route.get('twitter/request-oauth2-url', 'TwitterController.getRequestTokenOauth2
 
 // pinata
 Route.post('ipfs/upload', 'IpfsController.create')
+Route.get('ipfs/upload-iterator', 'IpfsController.getIterator')
 
 // atoms
 // can refactor later
