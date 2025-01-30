@@ -1,7 +1,16 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { pinata } from '../../../providers/routines'
 
+let i = 0
+export const uploadIterator = () => {
+  return {
+    iterate: () => i++,
+    get: () => i
+  }
+}
+
 export default class IpfsController {
+  public getIterator = ({response}) => response.json(i)
   public async index({}: HttpContextContract) {}
 
   public async create({request, response }: HttpContextContract) {
