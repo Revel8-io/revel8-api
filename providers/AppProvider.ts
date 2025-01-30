@@ -1,5 +1,5 @@
 import type { ApplicationContract } from '@ioc:Adonis/Core/Application'
-import { populateIPFSContent, testPinataAuth } from './routines'
+import { populateIPFSContent } from './routines'
 
 export default class AppProvider {
   constructor(protected app: ApplicationContract) {}

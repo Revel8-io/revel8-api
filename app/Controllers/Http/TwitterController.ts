@@ -4,6 +4,7 @@ import Redis from '@ioc:Adonis/Addons/Redis'
 import crypto from 'node:crypto'
 import axios from 'axios'
 import { AccessTokenResponse, UserDataResponse } from 'types'
+import Database from '@ioc:Adonis/Lucid/Database'
 
 const LoginWithTwitter = require('login-with-twitter')
 
@@ -20,7 +21,52 @@ const tw = new LoginWithTwitter({
   callbackUrl: Env.get('TWITTER_CALLBACK_URL')
 })
 
+const xApiAuth = axios.create({
+  baseURL: 'https://api.x.com/2',
+  headers: {
+    'Authorization': `Bearer ${Env.get('TWITTER_BEARER_TOKEN')}`
+  }
+})
+
 export default class Twitter {
+  // todo: add caching (1 day or 1 month?)
+  public async getXUser({ request, response }: HttpContextContract) {
+    const { xUsername } = request.qs()
+    const xUser = await Database.from('x_users')
+      .where('x_username', xUsername)
+      .first()
+    if (!xUser) {
+      // should we query for when account was created?
+      // query with user fields created_at, description, id, name, profile_banner_url, profile_image_url, url, username
+      const {
+        data: {
+          data: xUserFromX
+        }
+      } = await xApiAuth(`/users/by/username/${xUsername}`, {
+        params: {
+          'user.fields': 'created_at,description,id,name,profile_banner_url,profile_image_url,url,username'
+        }
+      })
+      console.log('xUserFromX', xUserFromX)
+      if (!xUserFromX) {
+        return response.status(404).json({
+          error: 'X user not found'
+        })
+      }
+      await Database.table('x_users').insert({
+        x_user_id: xUserFromX.id,
+        x_username: xUserFromX.username,
+        x_name: xUserFromX.name,
+        x_user_created_at: xUserFromX.created_at,
+        x_profile_image_url: xUserFromX.profile_image_url,
+        x_description: xUserFromX.description
+      })
+      return response.json(xUserFromX)
+    }
+    return response.json(xUser)
+  }
+
+
   public async getRequestToken({ request, response }: HttpContextContract) {
     // get rand query param
     const { rand } = request.qs()
@@ -204,3 +250,4 @@ async function generateRandomString(length: number): Promise<string> {
 
   return text;
 }
+

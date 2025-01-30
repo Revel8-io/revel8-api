@@ -41,6 +41,7 @@ Route.get('twitter/access-token', 'TwitterController.exchangeAuthCodeForAccessTo
 
 // oauth2
 Route.get('twitter/request-oauth2-url', 'TwitterController.getRequestTokenOauth2')
+Route.get('twitter/get-user', 'TwitterController.getXUser')
 
 // pinata
 Route.post('ipfs/upload', 'IpfsController.create')
@@ -50,3 +51,6 @@ Route.get('ipfs/upload-iterator', 'IpfsController.getIterator')
 // can refactor later
 Route.get('atoms/most-relevant-x', 'AtomsController.getMostRelevantXAtoms')
 Route.get('x/user-atoms', 'AtomsController.getXUserAtom')
+
+// exchange rates
+Route.get('exchange-rates', 'MiscController.getExchangeRates')

@@ -1,6 +1,7 @@
 import { PinataSDK } from "pinata-web3";
 import Env from '@ioc:Adonis/Core/Env'
 import axios from "axios";
+import { uploadIterator } from "App/Controllers/Http/IpfsController";
 
 export const pinata = new PinataSDK({
   pinataJwt: Env.get('PINATA_JWT'),
@@ -48,6 +49,7 @@ export const testPinataAuth = async () => {
 let isPopulating = false
 
 export const populateIPFSContent = async () => {
+  uploadIterator().iterate()
   const { default: Database } = await import('@ioc:Adonis/Lucid/Database')
   const { default: Redis } = await import('@ioc:Adonis/Addons/Redis')
   const { default: Env } = await import('@ioc:Adonis/Core/Env')
@@ -75,7 +77,9 @@ export const populateIPFSContent = async () => {
     })
     .orderBy('Atom.id', 'asc')
 
-    console.log('pending IPFS upload indexing rows.length', rows.length)
+    if (rows.length > 0) {
+      console.log('pending IPFS upload indexing rows.length', rows.length)
+    }
     // if (rows.length === 0) {
     //   console.log('search results are empty, waiting 500ms')
     //   setTimeout(populateIPFSContent, 500)
@@ -122,7 +126,8 @@ export const populateIPFSContent = async () => {
       // console.log('existingRows.length', existingRows.length)
 
       let contents = data
-      if (typeof data !== 'object') {
+      // console.log('data', typeof data, data)
+      if (typeof data !== 'object' || Array.isArray(data)) {
         contents = {}
       }
       if (data?.content) {
@@ -168,6 +173,7 @@ export const populateIPFSContent = async () => {
       // }
 
       const row = queue.shift()!;
+      if (!row) return
       const promise = processRow(row)
         .catch(err => console.error('Failed to process row:', err))
         .finally(() => {
