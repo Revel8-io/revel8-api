@@ -48,7 +48,16 @@ export default class AtomsController {
       .whereRaw('contents @> ?::jsonb', [JSON.stringify({ xUsername: username })])
       .join('Atom', 'atom_ipfs_data.atom_id', 'Atom.id')
       .join('Vault', 'Vault.id', 'Atom.vaultId')
-      .select('atom_ipfs_data.*', 'Vault.totalShares', 'Vault.currentSharePrice', 'Vault.positionCount')
+      .select(
+        'atom_ipfs_data.*',
+        'Vault.totalShares',
+        'Vault.currentSharePrice',
+        'Vault.positionCount',
+        'Atom.blockNumber',
+        'Atom.blockTimestamp',
+        'Atom.vaultId',
+        'Atom.creatorId'
+      )
       .orderByRaw('("Vault"."totalShares" / POWER(10, 18)) * ("Vault"."currentSharePrice" / POWER(10, 18)) DESC')
     console.log(`getXUserAtom for ${username} rows.length`, rows.length)
     return response.json(rows)

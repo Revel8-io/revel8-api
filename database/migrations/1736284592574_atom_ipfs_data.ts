@@ -10,7 +10,6 @@ export default class extends BaseSchema {
       table.jsonb('contents')
       table.integer('attempts').defaultTo(1)
       table.foreign('atom_id').references('Atom.id')
-      table.unique(['atom_id'])
 
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
