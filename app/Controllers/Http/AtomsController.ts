@@ -1,5 +1,6 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
+import fs from 'fs/promises'
 
 import { CONFIG } from '../../../util/'
 
@@ -51,6 +52,13 @@ export default class AtomsController {
       .orderByRaw('("Vault"."totalShares" / POWER(10, 18)) * ("Vault"."currentSharePrice" / POWER(10, 18)) DESC')
     console.log(`getXUserAtom for ${username} rows.length`, rows.length)
     return response.json(rows)
+  }
+
+  public async generateJSONData({ response }: HttpContextContract) {
+    const { rows } = await Database.rawQuery(`SELECT * FROM "atom_ipfs_data"`)
+    // write to file
+    await fs.writeFile('atomIpfsData.json', JSON.stringify(rows, null, 2))
+    return response.status(200)
   }
 }
 

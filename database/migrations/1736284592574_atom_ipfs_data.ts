@@ -5,12 +5,12 @@ export default class extends BaseSchema {
 
   public async up () {
     this.schema.createTable(this.tableName, (table) => {
-      table.increments('id')
+      table.increments('id').primary()
       table.integer('atom_id').unsigned()
       table.jsonb('contents')
       table.integer('attempts').defaultTo(1)
       table.foreign('atom_id').references('Atom.id')
-
+      table.unique(['atom_id'])
 
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL

@@ -51,6 +51,7 @@ Route.get('ipfs/upload-iterator', 'IpfsController.getIterator')
 // can refactor later
 Route.get('atoms/most-relevant-x', 'AtomsController.getMostRelevantXAtoms')
 Route.get('x/user-atoms', 'AtomsController.getXUserAtom')
+Route.get('generate-json-data', 'AtomsController.generateJSONData')
 
 // exchange rates
 Route.get('exchange-rates', 'MiscController.getExchangeRates')
