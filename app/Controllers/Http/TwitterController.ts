@@ -53,15 +53,16 @@ export default class Twitter {
           error: 'X user not found'
         })
       }
-      await Database.table('x_users').insert({
+      const formattedXUser = {
         x_user_id: xUserFromX.id,
         x_username: xUserFromX.username,
         x_name: xUserFromX.name,
         x_user_created_at: xUserFromX.created_at,
         x_profile_image_url: xUserFromX.profile_image_url,
         x_description: xUserFromX.description
-      })
-      return response.json(xUserFromX)
+      }
+      await Database.table('x_users').insert(formattedXUser)
+      return response.json(formattedXUser)
     }
     return response.json(xUser)
   }
