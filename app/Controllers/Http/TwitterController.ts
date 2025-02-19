@@ -5,6 +5,8 @@ import crypto from 'node:crypto'
 import axios from 'axios'
 import { AccessTokenResponse, UserDataResponse } from 'types'
 import Database from '@ioc:Adonis/Lucid/Database'
+import fs from 'fs'
+console.log('Twitter bearer token', Env.get('TWITTER_BEARER_TOKEN'))
 
 const LoginWithTwitter = require('login-with-twitter')
 
@@ -29,25 +31,43 @@ const xApiAuth = axios.create({
 })
 
 export default class Twitter {
+
   // todo: add caching (1 day or 1 month?)
   public async getXUser({ request, response }: HttpContextContract) {
     const { xUsername } = request.qs()
     const xUser = await Database.from('x_users')
       .where('x_username', xUsername)
       .first()
+    console.log('xUser from db', xUser?.username)
     if (!xUser) {
       // should we query for when account was created?
       // query with user fields created_at, description, id, name, profile_banner_url, profile_image_url, url, username
-      const {
-        data: {
-          data: xUserFromX
+      let xUserFromX
+      try {
+        const {
+          data: {
+            data
+          }
+        } = await xApiAuth(`/users/by/username/${xUsername}`, {
+          params: {
+            'user.fields': 'created_at,description,id,name,profile_banner_url,profile_image_url,url,username'
+          }
+        })
+        xUserFromX = data
+        const getUserCount = await Redis.get('getUserInstances')
+        console.log('getUserCount', getUserCount)
+        if (getUserCount) {
+          await Redis.set('getUserInstances', (parseInt(getUserCount) + 1).toString(), 'KEEPTTL')
+        } else {
+          await Redis.set('getUserInstances', '1', 'EX', 60 * 60 * 24)
         }
-      } = await xApiAuth(`/users/by/username/${xUsername}`, {
-        params: {
-          'user.fields': 'created_at,description,id,name,profile_banner_url,profile_image_url,url,username'
-        }
-      })
-      console.log('xUserFromX', xUserFromX)
+      } catch (err) {
+        console.error('Twitter::getXUser error', err)
+        return response.status(404).json({
+          error: 'X user not found'
+        })
+      }
+      console.log('xUserFromX', xUserFromX?.username)
       if (!xUserFromX) {
         return response.status(404).json({
           error: 'X user not found'
@@ -62,7 +82,16 @@ export default class Twitter {
         x_description: xUserFromX.description
       }
       await Database.table('x_users').insert(formattedXUser)
-      return response.json(formattedXUser)
+      response.json(formattedXUser)
+      // append to xUsers.json
+      const xUsers = JSON.parse(fs.readFileSync('xUsers.json', 'utf8'))
+      // check if existing entry with either x_user_id or x_username
+      const existingUser = xUsers.find((user: any) => user.x_user_id === formattedXUser.x_user_id || user.x_username === formattedXUser.x_username)
+      if (!existingUser) {
+        xUsers.push(formattedXUser)
+        fs.writeFileSync('xUsers.json', JSON.stringify(xUsers, null, 2))
+      }
+      return
     }
     return response.json(xUser)
   }
