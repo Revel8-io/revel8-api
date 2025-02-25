@@ -69,12 +69,12 @@ export default class NotesController {
     response.json(result)
     // read from '../../authorTargetNotes.json' then add key target to the object
     // then save the file
-    console.log('about to read')
-    const file = await fs.readFile('authorTargetNotes.json', 'utf8')
-    const data = JSON.parse(file)
-    data[target] = null
-    console.log('about to rewrite')
-    await fs.writeFile('authorTargetNotes.json', JSON.stringify(data, null, 2))
+    // console.log('about to read')
+    // const file = await fs.readFile('authorTargetNotes.json', 'utf8')
+    // const data = JSON.parse(file)
+    // data[target] = null
+    // console.log('about to rewrite')
+    // await fs.writeFile('authorTargetNotes.json', JSON.stringify(data, null, 2))
     return
   }
 
