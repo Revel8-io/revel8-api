@@ -77,8 +77,8 @@ export const populateIPFSContent = async () => {
         .orWhere('atom_ipfs_data.contents', '{}')
     })
     .where(query => {
-      query.where('atom_ipfs_data.attempts', '<', 5)
-      .orWhereNull('atom_ipfs_data.attempts')
+      query.where('atom_ipfs_data.contents_attempts', '<', 5)
+      .orWhereNull('atom_ipfs_data.contents_attempts')
     })
     .orderBy('Atom.id', 'asc')
 
@@ -110,7 +110,7 @@ export const populateIPFSContent = async () => {
     const processRow = async (row: any) => {
       let data
       let isError = false
-      console.log('row', row.atom_table_id, row.data, row.attempts)
+      console.log('row', row.atom_table_id, row.data, row.contents_attempts)
       try {
         data = await fetchIPFSContent(row)
       } catch (err) {
@@ -149,7 +149,7 @@ export const populateIPFSContent = async () => {
           await Database.query()
             .from('atom_ipfs_data')
             .where('atom_id', row.atom_table_id)
-            .update({ contents, attempts: isError ? existingRows[0].attempts + 1 : 1 });
+            .update({ contents, contents_attempts: isError ? existingRows[0].contents_attempts + 1 : 1 });
           console.log('finished updating')
         } else {
           await Database
