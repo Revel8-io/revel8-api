@@ -52,6 +52,8 @@ Route.get('ipfs/upload-iterator', 'IpfsController.getIterator')
 Route.get('atoms/most-relevant-x', 'AtomsController.getMostRelevantXAtoms')
 Route.get('x/user-atoms', 'AtomsController.getXUserAtom')
 Route.get('generate-json-data', 'AtomsController.generateJSONData')
+Route.resource('atoms', 'AtomsController').apiOnly()
+Route.get('atoms-with-contents/:id', 'AtomsController.showWithContents')
 
 // exchange rates
 Route.get('exchange-rates', 'MiscController.getExchangeRates')

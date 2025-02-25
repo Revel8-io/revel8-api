@@ -72,6 +72,11 @@ export const populateIPFSContent = async () => {
     })
     .whereNull('atom_ipfs_data.contents')
     .where(query => {
+      query
+        .whereNull('atom_ipfs_data.contents')
+        .orWhere('atom_ipfs_data.contents', '{}')
+    })
+    .where(query => {
       query.where('atom_ipfs_data.attempts', '<', 5)
       .orWhereNull('atom_ipfs_data.attempts')
     })
@@ -154,7 +159,7 @@ export const populateIPFSContent = async () => {
           console.log('finished inserting')
         }
       } catch (err) {
-        console.log('data type', typeof data, data)
+        // console.log('data type', typeof data, data)
         console.error('Error inserting or updating atom_ipfs_data', err.message)
       }
     }

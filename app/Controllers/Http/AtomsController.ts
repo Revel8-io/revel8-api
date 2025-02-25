@@ -4,9 +4,24 @@ import fs from 'fs/promises'
 
 import { CONFIG } from '../../../util/'
 
-const { IS_ATOM, IS_RELEVANT_X_ATOM } = CONFIG
+const { IS_ATOMS, IS_RELEVANT_X_ATOM } = CONFIG
 
 export default class AtomsController {
+  public async show({ params, response }: HttpContextContract) {
+    const { id: atomId } = params
+    const atom = await Database.query().from('Atom').where('id', atomId).first()
+    return response.json(atom)
+  }
+
+  public async showWithContents({ params, response }: HttpContextContract) {
+    const { id: atomId } = params
+    const atom = await Database.query()
+      .from('Atom')
+      .where('Atom.id', atomId)
+      .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+      .first()
+    return response.json(atom)
+  }
 
   public async getMostRelevantXAtoms({ response }: HttpContextContract) {
     const { rows } = await Database
@@ -14,7 +29,7 @@ export default class AtomsController {
             "Triple"."subjectId", "Triple"."vaultId", "Triple"."counterVaultId",
             "Vault"."totalShares" as "vaultTotalShares", "Vault"."currentSharePrice" as "vaultCurrentSharePrice", "Vault"."atomId" as "vaultAtomId", "Vault"."tripleId" as "vaultTripleId", "Vault"."positionCount" as "vaultPositionCount",
             "counterVault"."totalShares" as "counterVaultTotalShares", "counterVault"."currentSharePrice" as "counterVaultCurrentSharePrice", "counterVault"."atomId" as "counterVaultAtomId", "counterVault"."tripleId" as "counterVaultTripleId", "counterVault"."positionCount" as "counterVaultPositionCount",
-            atom_ipfs_data.contents as "atomContents"
+            atom_ipfs_data.contents as "contents"
             FROM
                 "Triple"
             JOIN
@@ -27,8 +42,41 @@ export default class AtomsController {
               "Triple"."counterVaultId" = "counterVault"."id"
             LEFT JOIN "atom_ipfs_data"
             ON "Triple"."subjectId" = "atom_ipfs_data"."atom_id"
-            WHERE
-                "Triple"."predicateId" = '${IS_ATOM}'
+            WHERE atom_ipfs_data.contents <> '{}'
+            AND
+                "Triple"."predicateId" IN (${IS_ATOMS.map(item=> "'" + item + "'").join(',')})
+                AND "Triple"."objectId" = '${IS_RELEVANT_X_ATOM}'
+            ORDER BY
+              GREATEST (
+                (("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC) / POWER(10, 18)),
+                (("counterVault"."totalShares"::NUMERIC / POWER(10, 18)) * ("counterVault"."currentSharePrice"::NUMERIC) / POWER(10, 18))
+              )
+            DESC LIMIT 20;`)
+    return response.json(rows)
+  }
+
+  public async getMostRelevantXAtomsWithContents({ response }: HttpContextContract) {
+    const { rows } = await Database
+      .rawQuery(`SELECT
+            "Triple"."subjectId", "Triple"."vaultId", "Triple"."counterVaultId",
+            "Vault"."totalShares" as "vaultTotalShares", "Vault"."currentSharePrice" as "vaultCurrentSharePrice", "Vault"."atomId" as "vaultAtomId", "Vault"."tripleId" as "vaultTripleId", "Vault"."positionCount" as "vaultPositionCount",
+            "counterVault"."totalShares" as "counterVaultTotalShares", "counterVault"."currentSharePrice" as "counterVaultCurrentSharePrice", "counterVault"."atomId" as "counterVaultAtomId", "counterVault"."tripleId" as "counterVaultTripleId", "counterVault"."positionCount" as "counterVaultPositionCount",
+            atom_ipfs_data.contents as "contents"
+            FROM
+                "Triple"
+            JOIN
+                "Vault"
+            ON
+                "Triple"."vaultId" = "Vault".id
+            JOIN
+              "Vault" AS "counterVault"
+            ON
+              "Triple"."counterVaultId" = "counterVault"."id"
+            LEFT JOIN "atom_ipfs_data"
+            ON "Triple"."subjectId" = "atom_ipfs_data"."atom_id"
+            WHERE atom_ipfs_data.contents <> '{}'
+            AND
+                "Triple"."predicateId" IN (${IS_ATOMS.map(item=> "'" + item + "'").join(',')})
                 AND "Triple"."objectId" = '${IS_RELEVANT_X_ATOM}'
             ORDER BY
               GREATEST (
