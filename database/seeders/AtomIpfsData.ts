@@ -21,7 +21,7 @@ export default class extends BaseSeeder {
 
     // insert into database
     for (const item of filteredJsonData) {
-      console.log('inserting', item)
+      // console.log('inserting', item)
       try {
         await Database.table('atom_ipfs_data').insert(item)
       } catch (error) {
