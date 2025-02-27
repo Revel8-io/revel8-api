@@ -125,7 +125,7 @@ export const populateIPFSContent = async () => {
       // console.log('data', data)
       // console.log('typeof data', typeof data)
 
-      const existingRows = await Database.query()
+      const existingContentsRowForAtom = await Database.query()
         .from('atom_ipfs_data')
         .where('atom_id', row.atom_table_id)
       // console.log('existingRows.length', existingRows.length)
@@ -145,11 +145,11 @@ export const populateIPFSContent = async () => {
         contents = { filename: data.name, ...moreContent }
       }
       try {
-        if (existingRows.length > 0) {
+        if (existingContentsRowForAtom.length > 0) {
           await Database.query()
             .from('atom_ipfs_data')
             .where('atom_id', row.atom_table_id)
-            .update({ contents, contents_attempts: isError ? existingRows[0].contents_attempts + 1 : 1 });
+            .update({ contents, contents_attempts: isError ? existingContentsRowForAtom[0].contents_attempts + 1 : 1 });
         } else {
           await Database
             .insertQuery()
@@ -157,8 +157,8 @@ export const populateIPFSContent = async () => {
             .insert({ atom_id: row.atom_table_id, contents });
         }
       } catch (err) {
-        // console.log('data type', typeof data, data)
-        console.error('[CONTENTS] Error inserting or updating atom_ipfs_data', err.message)
+        // console.log('data type', typeof data, data)')
+        console.error('[CONTENTS] Error inserting or updating atom_ipfs_data', err, row, existingContentsRowForAtom)
       }
     }
 
