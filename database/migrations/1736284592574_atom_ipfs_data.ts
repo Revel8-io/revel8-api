@@ -10,6 +10,8 @@ export default class extends BaseSchema {
       table.jsonb('contents')
       table.integer('contents_attempts').defaultTo(1)
       table.integer('image_attempts').defaultTo(1)
+      table.string('image_hash').nullable()
+      table.string('image_filename').nullable()
       table.foreign('atom_id').references('Atom.id')
 
       /**

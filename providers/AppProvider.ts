@@ -1,5 +1,5 @@
 import type { ApplicationContract } from '@ioc:Adonis/Core/Application'
-import { populateIPFSContent } from './routines'
+import { populateIPFSContent, populateImageFiles } from './routines'
 
 export default class AppProvider {
   constructor(protected app: ApplicationContract) {}
@@ -19,6 +19,7 @@ export default class AppProvider {
 		await import('@ioc:Adonis/Core/Env')
     // testPinataAuth()
     populateIPFSContent()
+    populateImageFiles()
   }
 
   public async shutdown() {

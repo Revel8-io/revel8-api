@@ -2,6 +2,8 @@ import { PinataSDK } from "pinata-web3";
 import Env from '@ioc:Adonis/Core/Env'
 import axios from "axios";
 import { uploadIterator } from "App/Controllers/Http/IpfsController";
+import fs from 'fs/promises'
+const PINATA_GATEWAY_KEY = Env.get('PINATA_GATEWAY_KEY')
 
 export const pinata = new PinataSDK({
   pinataJwt: Env.get('PINATA_JWT'),
@@ -46,8 +48,6 @@ export const testPinataAuth = async () => {
 //   client.query('LISTEN table_update');
 // }
 
-let isPopulating = false
-
 export const populateIPFSContent = async () => {
   uploadIterator().iterate()
   const { default: Database } = await import('@ioc:Adonis/Lucid/Database')
@@ -83,23 +83,23 @@ export const populateIPFSContent = async () => {
     .orderBy('Atom.id', 'asc')
 
     if (rows.length > 0) {
-      console.log('pending IPFS upload indexing rows.length', rows.length)
+      console.log('[CONTENTS] pending IPFS upload indexing rows.length', rows.length)
     }
     // if (rows.length === 0) {
     //   console.log('search results are empty, waiting 500ms')
     //   setTimeout(populateIPFSContent, 500)
     //   return
     // }
-    const pinataGatewayKey = Env.get('PINATA_GATEWAY_KEY')
+    const PINATA_GATEWAY_KEY = Env.get('PINATA_GATEWAY_KEY')
 
     const fetchIPFSContent = async (row: any) => {
       let hash = ''
       hash = row.data.split('/').pop()
-      console.log('hash', hash)
+      console.log('[CONTENTS] hash', hash)
 
       const { data } = await axios.get(`https://blush-legal-emu-115.mypinata.cloud/ipfs/${hash}`, {
         params: {
-          pinataGatewayToken: pinataGatewayKey
+          pinataGatewayToken: PINATA_GATEWAY_KEY
         },
         timeout: 10000 // 10 seconds timeout
       })
@@ -110,15 +110,15 @@ export const populateIPFSContent = async () => {
     const processRow = async (row: any) => {
       let data
       let isError = false
-      console.log('row', row.atom_table_id, row.data, row.contents_attempts)
+      // console.log('row', row.atom_table_id, row.data, row.contents_attempts)
       try {
         data = await fetchIPFSContent(row)
       } catch (err) {
-        console.error('Error getting data from Atom.id', row.atom_table_id, err.message)
+        console.error('[CONTENTS] Error getting data from Atom.id', row.atom_table_id, err.message)
         isError = true
-        console.log('err.response.status', err.response?.status)
+        // console.log('err.response.status', err.response?.status)
         if (err.response?.status === 429) {
-          console.log('Rate limit exceeded, sleeping for 10 seconds')
+          console.log('[CONTENTS] Rate limit exceeded, sleeping for 10 seconds')
           return await sleep(30000)
         }
       }
@@ -150,17 +150,15 @@ export const populateIPFSContent = async () => {
             .from('atom_ipfs_data')
             .where('atom_id', row.atom_table_id)
             .update({ contents, contents_attempts: isError ? existingRows[0].contents_attempts + 1 : 1 });
-          console.log('finished updating')
         } else {
           await Database
             .insertQuery()
             .table('atom_ipfs_data')
             .insert({ atom_id: row.atom_table_id, contents });
-          console.log('finished inserting')
         }
       } catch (err) {
         // console.log('data type', typeof data, data)
-        console.error('Error inserting or updating atom_ipfs_data', err.message)
+        console.error('[CONTENTS] Error inserting or updating atom_ipfs_data', err.message)
       }
     }
 
@@ -170,7 +168,7 @@ export const populateIPFSContent = async () => {
     const activePromises = new Set();
 
     const processNext = async () => {
-      console.log('processing next')
+      console.log('[CONTENTS] processing next')
       // if (queue.length === 0) {
       //   console.log('queue is empty, waiting 500ms')
       //   setTimeout(populateIPFSContent, 500)
@@ -180,7 +178,7 @@ export const populateIPFSContent = async () => {
       const row = queue.shift()!;
       if (!row) return
       const promise = processRow(row)
-        .catch(err => console.error('Failed to process row:', err))
+        .catch(err => console.log('[CONTENTS] failed to process row', row.atom_table_id, err.message))
         .finally(() => {
           activePromises.delete(promise);
           // Process next item if queue is not empty
@@ -203,11 +201,111 @@ export const populateIPFSContent = async () => {
       await Promise.race(activePromises);
     }
   } catch (err) {
-    console.error('Error populating IPFS content:', err)
+    console.error('[CONTENTS] Error populating IPFS content', err)
   } finally {
     setTimeout(populateIPFSContent, 1000)
   }
+}
 
+export const populateImageFiles = async () => {
+  const { default: Database } = await import('@ioc:Adonis/Lucid/Database')
+  const { default: Redis } = await import('@ioc:Adonis/Addons/Redis')
+  const { default: Env } = await import('@ioc:Adonis/Core/Env')
+
+  // select all rows from Atoms and right join to atom_ipfs_data
+  // on atoms.id = atom_ipfs_data.atom_id
+  // where atoms.data is like 'ipfs://' or starts with 'Qm' and atom_ipfs_data.contents is null
+  // for each row, get the contents from the ipfs url and store it in atom_ipfs_data.contents
+  // update atom_ipfs_data with the new contents
+
+  // now need to read files from directory and see which are missing from atom_ipfs_data.image_hash
+
+  try {
+    const rows = await Database.from('atom_ipfs_data')
+      .whereNull('image_filename')
+      .andWhereNot('contents', '{}')
+      .andWhere('image_attempts', '<', 5)
+      .orderBy('atom_id', 'asc')
+
+      const files = await fs.readdir('public/img/atoms')
+      if (rows.length) {
+      console.log('[IMAGES] image hashes needing downloading', rows.length)
+      console.log('[IMAGES] image files.length', files.length)
+    }
+
+    if (rows.length > 0) {
+      console.log('[IMAGES] pending contents image backups rows.length', rows.length)
+    }
+
+    const processRow = async (row: any) => {
+      const { contents } = row
+      const imageUrl = contents.image || contents.image_url || contents.xAvatarUrl || contents.avatarUrl || contents.avatar_url
+      if (!imageUrl) {
+        await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
+          .update({ image_attempts: 5 })
+        return
+      }
+      // fetch the image and then save it to the public/img/atoms directory
+
+      try {
+        const { data } = await axios.get(imageUrl, {
+          responseType: 'arraybuffer'
+        })
+        const filename = `${row.atom_id}.${imageUrl.split('.').pop()}`
+        const filenameWithoutParams = filename.split('?')[0].split('&')[0]
+        await fs.writeFile(`public/img/atoms/${filenameWithoutParams}`, data)
+        await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
+          .update({ image_filename: filenameWithoutParams })
+      } catch (err) {
+        console.error('[IMAGES] Error downloading atom image', row.atom_id, err.message)
+        await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
+          .update({ image_attempts: row.image_attempts + 1 })
+      }
+    }
+
+    // New concurrent processing implementation
+    const concurrentLimit = 5;
+    const queue = rows.slice(); // Create a copy of the rows array
+    const activePromises = new Set();
+
+    const processNext = async () => {
+      // if (queue.length === 0) {
+        //   console.log('queue is empty, waiting 500ms')
+        //   setTimeout(populateIPFSContent, 500)
+        //   return;
+        // }
+
+        const row = queue.shift()!;
+        console.log('[IMAGES] processing next', row.atom_id)
+      if (!row) return
+      const promise = processRow(row)
+        .catch(err => console.error('[IMAGES] Failed to process row:', err))
+        .finally(() => {
+          activePromises.delete(promise);
+          // Process next item if queue is not empty
+          if (queue.length > 0) {
+            processNext();
+          }
+        });
+
+      activePromises.add(promise);
+    };
+
+    // Initialize processing with concurrentLimit items
+    for (let i = 0; i < Math.min(concurrentLimit, rows.length); i++) {
+      await sleep(1000)
+      processNext();
+    }
+
+    // Wait for all processing to complete
+    while (activePromises.size > 0) {
+      await Promise.race(activePromises);
+    }
+  } catch (err) {
+    console.error('[IMAGES] Error saving image files:', err)
+  } finally {
+    setTimeout(populateImageFiles, 1000)
+  }
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

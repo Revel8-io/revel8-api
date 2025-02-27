@@ -29,7 +29,7 @@ export default class AtomsController {
             "Triple"."subjectId", "Triple"."vaultId", "Triple"."counterVaultId",
             "Vault"."totalShares" as "vaultTotalShares", "Vault"."currentSharePrice" as "vaultCurrentSharePrice", "Vault"."atomId" as "vaultAtomId", "Vault"."tripleId" as "vaultTripleId", "Vault"."positionCount" as "vaultPositionCount",
             "counterVault"."totalShares" as "counterVaultTotalShares", "counterVault"."currentSharePrice" as "counterVaultCurrentSharePrice", "counterVault"."atomId" as "counterVaultAtomId", "counterVault"."tripleId" as "counterVaultTripleId", "counterVault"."positionCount" as "counterVaultPositionCount",
-            atom_ipfs_data.contents as "contents"
+            atom_ipfs_data.contents as "contents", atom_ipfs_data.image_filename as "image_filename"
             FROM
                 "Triple"
             JOIN
