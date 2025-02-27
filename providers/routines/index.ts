@@ -250,12 +250,6 @@ export const populateImageFiles = async () => {
       try {
         const filename = `${row.atom_id}.${imageUrl.split('.').pop()}`
         const filenameWithoutParams = filename.split('?')[0].split('&')[0]
-        const file = await fs.readFile(`public/img/atoms/${filenameWithoutParams}`)
-        if (file) {
-          await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
-            .update({ image_filename: filenameWithoutParams })
-          return
-        }
         const { data } = await axios.get(imageUrl, {
           responseType: 'arraybuffer'
         })
