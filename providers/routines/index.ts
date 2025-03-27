@@ -219,7 +219,7 @@ export const populateImageFiles = async () => {
   // update atom_ipfs_data with the new contents
 
   // now need to read files from directory and see which are missing from atom_ipfs_data.image_hash
-
+  console.log('populateImageFiles')
   try {
     const rows = await Database.from('atom_ipfs_data')
       .whereNull('image_filename')
@@ -227,14 +227,12 @@ export const populateImageFiles = async () => {
       .andWhere('image_attempts', '<', 5)
       .orderBy('atom_id', 'asc')
 
-      const files = await fs.readdir('public/img/atoms')
-      if (rows.length) {
-      console.log('[IMAGES] image hashes needing downloading', rows.length)
+    console.log('rows', rows.length)
+    const files = await fs.readdir('public/img/atoms')
+    console.log('files', files.length)
+    if (rows.length) {
+      console.log('[IMAGES] images needing downloading', rows.length)
       console.log('[IMAGES] image files.length', files.length)
-    }
-
-    if (rows.length > 0) {
-      console.log('[IMAGES] pending contents image backups rows.length', rows.length)
     }
 
     const processRow = async (row: any) => {
@@ -250,9 +248,27 @@ export const populateImageFiles = async () => {
       try {
         const filename = `${row.atom_id}.${imageUrl.split('.').pop()}`
         const filenameWithoutParams = filename.split('?')[0].split('&')[0]
-        const { data } = await axios.get(imageUrl, {
-          responseType: 'arraybuffer'
-        })
+        let data
+        if (imageUrl.includes('_normal.')) {
+          const imageUrlToFetch = imageUrl.replace('_normal.', '_400x400.')
+          let response
+          try {
+            response = await axios.get(imageUrlToFetch, {
+              responseType: 'arraybuffer'
+            })
+          } catch (err) {
+            response = await axios.get(imageUrl, {
+              responseType: 'arraybuffer'
+            })
+          } finally {
+            data = response.data
+          }
+        } else {
+          const response = await axios.get(imageUrl, {
+            responseType: 'arraybuffer'
+          })
+          data = response.data
+        }
         await fs.writeFile(`public/img/atoms/${filenameWithoutParams}`, data)
         await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
           .update({ image_filename: filenameWithoutParams })
@@ -275,9 +291,9 @@ export const populateImageFiles = async () => {
         //   return;
         // }
 
-        const row = queue.shift()!;
-        console.log('[IMAGES] processing next', row.atom_id)
+      const row = queue.shift()!;
       if (!row) return
+      console.log('[IMAGES] processing next', row.atom_id)
       const promise = processRow(row)
         .catch(err => console.error('[IMAGES] Failed to process row:', err))
         .finally(() => {

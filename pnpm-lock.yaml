@@ -23,9 +23,15 @@ importers:
       '@adonisjs/repl':
         specifier: ^3.1.0
         version: 3.1.11(@adonisjs/core@5.9.0)
+      '@adonisjs/static':
+        specifier: ^1.1.1
+        version: 1.1.1(@adonisjs/core@5.9.0)
       '@adonisjs/view':
         specifier: ^6.2.0
         version: 6.2.0(@adonisjs/core@5.9.0)
+      '@multiformats/base-x':
+        specifier: ^4.0.1
+        version: 4.0.1
       axios:
         specifier: ^1.7.3
         version: 1.7.9
@@ -35,6 +41,9 @@ importers:
       luxon:
         specifier: ^3.4.4
         version: 3.4.4
+      multiformats:
+        specifier: ^13.3.2
+        version: 13.3.2
       oauth-signature:
         specifier: ^1.5.0
         version: 1.5.0
@@ -207,6 +216,12 @@ packages:
     peerDependencies:
       '@adonisjs/application': ^5.0.0
 
+  '@adonisjs/static@1.1.1':
+    resolution: {integrity: sha512-Ukd2WB21/eajKLNQbaQ3Chxdqn7HyeHSO41J29oWc8DQFEhxxQIUGq0C1Kv5cJFY7PvZm9RAKMBi/2JC58LFWQ==}
+    engines: {node: '>=18.16.0'}
+    peerDependencies:
+      '@adonisjs/core': ^6.2.0
+
   '@adonisjs/validator@12.6.0':
     resolution: {integrity: sha512-0mS7msmgQpcWnxAs1hORQFOt2jWfPqEXNeq8NdCYqTUxgQObLgDlyfrMG98238EvXUhCS1kZdXM4w/EMwoiAuA==}
     peerDependencies:
@@ -342,6 +357,9 @@ packages:
   '@mrmlnc/readdir-enhanced@2.2.1':
     resolution: {integrity: sha512-bPHp6Ji8b41szTOcaP63VlnbbO5Ny6dwAATtY6JTjh5N2OLrb5Qk/Th5cRkRQhkWCt+EJsYrNB0MiL+Gpn6e3g==}
     engines: {node: '>=4'}
+
+  '@multiformats/base-x@4.0.1':
+    resolution: {integrity: sha512-eMk0b9ReBbV23xXU693TAIrLyeO5iTgBZGSJfpqriG8UkYvr/hC9u9pyMlAakDNHWmbhMZCDs6KQO0jzKD8OTw==}
 
   '@multiformats/dns@1.0.6':
     resolution: {integrity: sha512-nt/5UqjMPtyvkG9BQYdJ4GfLK3nMqGpFZOzf4hAmIa0sJh2LlS9YKXZ4FgwBDsaHvzZqR/rUFIywIc7pkHNNuw==}
@@ -2341,8 +2359,8 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
-  multiformats@13.3.1:
-    resolution: {integrity: sha512-QxowxTNwJ3r5RMctoGA5p13w5RbRT2QDkoM+yFlqfLiioBp78nhDjnRLvmSBI9+KAqN4VdgOVWM9c0CHd86m3g==}
+  multiformats@13.3.2:
+    resolution: {integrity: sha512-qbB0CQDt3QKfiAzZ5ZYjLFOs+zW43vA4uyM8g27PeEuXZybUOFyjrVdP93HPBHMoglibwfkdVwbzfUq8qGcH6g==}
 
   mustache@4.2.0:
     resolution: {integrity: sha512-71ippSywq5Yb7/tVYyGbkBggbU8H3u5Rz56fH60jGFgr8uHwxs+aSKeqmluIVzM0m0kB7xQjKS6qPfd0b2ZoqQ==}
@@ -3653,6 +3671,13 @@ snapshots:
       mustache: 4.2.0
       open: 8.4.2
 
+  '@adonisjs/static@1.1.1(@adonisjs/core@5.9.0)':
+    dependencies:
+      '@adonisjs/core': 5.9.0
+      serve-static: 1.15.0
+    transitivePeerDependencies:
+      - supports-color
+
   '@adonisjs/validator@12.6.0(@adonisjs/application@5.3.0)(@adonisjs/bodyparser@8.1.9(@adonisjs/application@5.3.0)(@adonisjs/drive@2.3.0(@adonisjs/application@5.3.0)(@adonisjs/http-server@5.12.0(@adonisjs/application@5.3.0)(@adonisjs/encryption@4.0.8(@adonisjs/application@5.3.0))))(@adonisjs/http-server@5.12.0(@adonisjs/application@5.3.0)(@adonisjs/encryption@4.0.8(@adonisjs/application@5.3.0))))(@adonisjs/http-server@5.12.0(@adonisjs/application@5.3.0)(@adonisjs/encryption@4.0.8(@adonisjs/application@5.3.0)))':
     dependencies:
       '@adonisjs/application': 5.3.0
@@ -3845,6 +3870,8 @@ snapshots:
       call-me-maybe: 1.0.2
       glob-to-regexp: 0.3.0
 
+  '@multiformats/base-x@4.0.1': {}
+
   '@multiformats/dns@1.0.6':
     dependencies:
       '@types/dns-packet': 5.6.5
@@ -3864,7 +3891,7 @@ snapshots:
       '@chainsafe/is-ip': 2.0.2
       '@chainsafe/netmask': 2.0.0
       '@multiformats/dns': 1.0.6
-      multiformats: 13.3.1
+      multiformats: 13.3.2
       uint8-varint: 2.0.4
       uint8arrays: 5.1.0
 
@@ -5647,7 +5674,7 @@ snapshots:
       '@multiformats/mafmt': 12.1.6
       '@multiformats/multiaddr': 12.3.4
       iso-url: 1.2.1
-      multiformats: 13.3.1
+      multiformats: 13.3.2
       uint8arrays: 5.1.0
 
   is-negative-zero@2.0.3: {}
@@ -6068,7 +6095,7 @@ snapshots:
 
   ms@2.1.3: {}
 
-  multiformats@13.3.1: {}
+  multiformats@13.3.2: {}
 
   mustache@4.2.0: {}
 
@@ -7051,7 +7078,7 @@ snapshots:
 
   uint8arrays@5.1.0:
     dependencies:
-      multiformats: 13.3.1
+      multiformats: 13.3.2
 
   unbox-primitive@1.0.2:
     dependencies:

@@ -45,7 +45,9 @@ Route.get('twitter/get-user', 'TwitterController.getXUser')
 
 // pinata
 Route.post('ipfs/upload', 'IpfsController.create')
+Route.post('ipfs/upload-image', 'IpfsController.uploadImage')
 Route.get('ipfs/upload-iterator', 'IpfsController.getIterator')
+Route.post('ipfs/image-by-url', 'IpfsController.createImageByUrl')
 
 // atoms
 // can refactor later
