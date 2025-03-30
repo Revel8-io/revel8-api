@@ -23,6 +23,17 @@ export default class AtomsController {
     return response.json(atom)
   }
 
+  public async getAtomContentsWithVaults({ params, response }: HttpContextContract) {
+    const { atomId } = params
+    const atom = await Database.query()
+      .from('Atom')
+      .where('Atom.id', atomId)
+      .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+      .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
+      .first()
+    return response.json(atom)
+  }
+
   public async getMostRelevantXAtoms({ response }: HttpContextContract) {
     const { rows } = await Database
       .rawQuery(`SELECT
