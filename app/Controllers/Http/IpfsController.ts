@@ -21,6 +21,10 @@ const PINATA_GROUPS = {
   'Uploaded Image': {
     filenameKey: 'uploaded_image',
     pinataGroup: '1f38f345-0c45-4e2f-b875-2a1634d5f2bb' // testnet
+  },
+  'Uploaded JSON': {
+    filenameKey: 'uploaded_json',
+    pinataGroup: 'c94f6aec-bfd7-4009-bfd4-3437d71734b2' // testnet
   }
 }
 
@@ -119,5 +123,27 @@ export default class IpfsController {
       pinSize: PinSize,
       timestamp: Timestamp
     })
+  }
+
+  public async uploadJson({request, response}: HttpContextContract) {
+    const { data: { jsonList } }: { data: { jsonList: object[] }} = request.all()
+    if (!jsonList || jsonList.length === 0) {
+      return response.status(400).json({ error: 'No JSON data provided' })
+    }
+    const promises: Promise<any>[] = []
+    jsonList.forEach((json: { name: string }) => {
+      const unixTimestamp = Math.floor(Date.now() / 1000)
+      // also remove all special characters
+      const title = json.name.substring(0, 10).toLowerCase().replace(/[^a-z0-9]/g, '')
+      const filename = `${PINATA_GROUPS['Uploaded JSON'].filenameKey}-${title}-${unixTimestamp}.json`
+      const promise = pinata.upload.json({
+        content: JSON.stringify(json),
+        name: filename,
+        group: PINATA_GROUPS['Uploaded JSON'].pinataGroup
+      })
+      promises.push(promise)
+    })
+    const results = await Promise.all(promises)
+    return response.status(200).json(results)
   }
 }

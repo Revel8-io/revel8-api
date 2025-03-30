@@ -48,6 +48,7 @@ Route.post('ipfs/upload', 'IpfsController.create')
 Route.post('ipfs/upload-image', 'IpfsController.uploadImage')
 Route.get('ipfs/upload-iterator', 'IpfsController.getIterator')
 Route.post('ipfs/image-by-url', 'IpfsController.createImageByUrl')
+Route.post('ipfs/upload-json', 'IpfsController.uploadJson')
 
 // atoms
 // can refactor later
