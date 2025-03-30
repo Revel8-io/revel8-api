@@ -6,7 +6,7 @@ export default class extends BaseSchema {
   public async up () {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id').primary()
-      table.integer('atom_id').unsigned().unique()
+      table.bigInteger('atom_id').unsigned().unique()
       table.jsonb('contents')
       table.integer('contents_attempts').defaultTo(1)
       table.integer('image_attempts').defaultTo(1)

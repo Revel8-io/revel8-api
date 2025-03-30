@@ -3,6 +3,7 @@ import Env from '@ioc:Adonis/Core/Env'
 import axios from "axios";
 import { uploadIterator } from "App/Controllers/Http/IpfsController";
 import fs from 'fs/promises'
+
 const PINATA_GATEWAY_KEY = Env.get('PINATA_GATEWAY_KEY')
 
 export const pinata = new PinataSDK({

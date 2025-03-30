@@ -61,3 +61,5 @@ Route.get('atoms/:atomId/all', 'AtomsController.getAtomContentsWithVaults')
 
 // exchange rates
 Route.get('exchange-rates', 'MiscController.getExchangeRates')
+
+Route.get('triples/atom/:atomId', 'TriplesController.getTriplesByAtomId')
