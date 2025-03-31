@@ -143,7 +143,7 @@ export const populateIPFSContent = async () => {
         } catch (err) {
           moreContent = data.content
         }
-        contents = { filename: data.name, ...moreContent }
+        contents = { /* filename: data.name, */ ...moreContent }
       }
       try {
         if (existingContentsRowForAtom.length > 0) {
