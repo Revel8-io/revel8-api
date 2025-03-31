@@ -136,6 +136,7 @@ export default class IpfsController {
       // also remove all special characters
       const title = json.name.substring(0, 10).toLowerCase().replace(/[^a-z0-9]/g, '')
       const filename = `${PINATA_GROUPS['Uploaded JSON'].filenameKey}-${title}-${unixTimestamp}.json`
+      console.log('json', json)
       const promise = pinata.upload.json({
         content: JSON.stringify(json),
         name: filename,
@@ -144,6 +145,7 @@ export default class IpfsController {
       promises.push(promise)
     })
     const results = await Promise.all(promises)
+    console.log('results', results)
     return response.status(200).json(results)
   }
 }

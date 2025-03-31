@@ -220,7 +220,6 @@ export const populateImageFiles = async () => {
   // update atom_ipfs_data with the new contents
 
   // now need to read files from directory and see which are missing from atom_ipfs_data.image_hash
-  console.log('populateImageFiles')
   try {
     const rows = await Database.from('atom_ipfs_data')
       .whereNull('image_filename')
@@ -228,13 +227,13 @@ export const populateImageFiles = async () => {
       .andWhere('image_attempts', '<', 5)
       .orderBy('atom_id', 'asc')
 
-    console.log('rows', rows.length)
-    const files = await fs.readdir('public/img/atoms')
-    console.log('files', files.length)
     if (rows.length) {
+      console.log('rows', rows.length)
       console.log('[IMAGES] images needing downloading', rows.length)
       console.log('[IMAGES] image files.length', files.length)
     }
+    const files = await fs.readdir('public/img/atoms')
+    console.log('files', files.length)
 
     const processRow = async (row: any) => {
       const { contents } = row

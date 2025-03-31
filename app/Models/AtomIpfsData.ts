@@ -7,6 +7,7 @@ import { DateTime } from 'luxon'
 export default class AtomIpfsData extends BaseModel {
   public static table = 'atom_ipfs_data'
   public serializeExtras = true
+  public static hidden = ['image_filename', 'image_attempts', 'contents_attempts']
 
   @column({ isPrimary: true })
   public id: number
@@ -23,16 +24,16 @@ export default class AtomIpfsData extends BaseModel {
   @column()
   public contents: any
 
-  @column()
+  @column({ serializeAs: null })
   public contents_attempts: number
 
-  @column()
+  @column({ serializeAs: null })
   public image_attempts: number
 
-  @column()
+  @column({ serializeAs: null })
   public image_hash: string | null
 
-  @column()
+  @column({ serializeAs: null })
   public image_filename: string | null
 
   @column.dateTime({ autoCreate: true })

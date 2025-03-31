@@ -3,10 +3,27 @@ import Database from '@ioc:Adonis/Lucid/Database'
 import fs from 'fs/promises'
 
 import { CONFIG } from '../../../util/'
+import Atom from 'App/Models/Atom'
 
 const { IS_ATOMS, IS_RELEVANT_X_ATOM } = CONFIG
 
 export default class AtomsController {
+
+  public async index({ request, response }: HttpContextContract) {
+    console.time('AtomsController->index')
+    const { page = 1, perPage = 20, orderBy = 'blockTimestamp', order = 'desc' } = request.all()
+    const atoms = await Atom.query()
+      .preload('atomIpfsData')
+      .preload('vault')
+      .orderBy(orderBy, order)
+      .paginate(page, perPage)
+
+    console.log('Full atoms structure:', JSON.stringify(atoms, null, 2))
+    console.timeEnd('AtomsController->index')
+    console.log('atoms', atoms)
+    return response.json(atoms)
+  }
+
   public async show({ params, response }: HttpContextContract) {
     const { id: atomId } = params
     const atom = await Database.query().from('Atom').where('id', atomId).first()
@@ -14,6 +31,7 @@ export default class AtomsController {
   }
 
   public async showWithContents({ params, response }: HttpContextContract) {
+    console.time('showWithContents')
     const { id: atomId } = params
     const atom = await Database.query()
       .from('Atom')
