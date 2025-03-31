@@ -38,6 +38,8 @@ export default class TriplesController {
         query.preload('vault')
         query.preload('atomIpfsData')
       })
+      .preload('vault')
+      .preload('counterVault')
     return response.json(triples)
   }
 }

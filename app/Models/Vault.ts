@@ -1,5 +1,6 @@
-import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, HasOne, hasOne, BelongsTo, belongsTo } from '@ioc:Adonis/Lucid/Orm'
 import Atom from './Atom'
+import Triple from './Triple'
 
 // id, atomId, tripleId, totalShares, currentSharePrice, positionCount
 export default class Vault extends BaseModel {
@@ -16,6 +17,9 @@ export default class Vault extends BaseModel {
 
   @column({ columnName: 'tripleId' })
   public tripleId: number
+
+  @belongsTo(() => Triple, { foreignKey: 'id', localKey: 'tripleId' })
+  public triple: BelongsTo<typeof Triple>
 
   @column({ columnName: 'totalShares' })
   public totalShares: number

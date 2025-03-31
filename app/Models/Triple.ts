@@ -1,6 +1,6 @@
 import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import Atom from './Atom'
-
+import Vault from './Vault'
 // id, creatorId, subjectId, predicateId, label, vaultId, counterVaultId, blockNumber, blockTimestamp, transactionHash
 
 export default class Triple extends BaseModel {
@@ -37,8 +37,14 @@ export default class Triple extends BaseModel {
   @column({ columnName: 'vaultId' })
   public vaultId: number
 
+  @hasOne(() => Vault, { foreignKey: 'id', localKey: 'vaultId' })
+  public vault: HasOne<typeof Vault>
+
   @column({ columnName: 'counterVaultId' })
   public counterVaultId: number
+
+  @hasOne(() => Vault, { foreignKey: 'id', localKey: 'counterVaultId' })
+  public counterVault: HasOne<typeof Vault>
 
   @column({ columnName: 'blockNumber' })
   public blockNumber: number
