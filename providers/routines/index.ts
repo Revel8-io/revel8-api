@@ -230,9 +230,9 @@ export const populateImageFiles = async () => {
     if (rows.length) {
       console.log('rows', rows.length)
       console.log('[IMAGES] images needing downloading', rows.length)
-      console.log('[IMAGES] image files.length', files.length)
     }
     const files = await fs.readdir('public/img/atoms')
+    console.log('[IMAGES] image files.length', files.length)
     console.log('files', files.length)
 
     const processRow = async (row: any) => {
