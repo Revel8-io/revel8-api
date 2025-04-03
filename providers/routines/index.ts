@@ -213,20 +213,17 @@ export const populateImageFiles = async () => {
 
     const processRow = async (row: any) => {
       const { contents } = row
-      const imageUrl = contents.image || contents.image_url || contents.xAvatarUrl || contents.avatarUrl || contents.avatar_url
+      const imageUrl = contents.image
       if (!imageUrl || imageUrl === 'null') {
         await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
           .update({ image_attempts: 5 })
-        console.log('2.5 no imageUrl', row.atom_id)
         return
       }
       // fetch the image and then save it to the public/img/atoms directory
 
       try {
-        console.log('3 [IMAGES] trying', imageUrl)
         let data
         let response
-        console.log('4 imageUrl', imageUrl)
         if (imageUrl.includes('_normal.')) {
           const imageUrlToFetch = imageUrl.replace('_normal.', '_400x400.')
           try {
@@ -238,34 +235,25 @@ export const populateImageFiles = async () => {
               responseType: 'arraybuffer'
             })
           } finally {
-            console.log('5 includes _normal response', response.status)
             data = response.data
           }
         } else {
-          console.log('6 in else')
           if (imageUrl.includes('ipfs://')) {
             response = await axios.get(imageUrl, { responseType: 'arraybuffer' })
           } else if (imageUrl.startsWith('Qm') || imageUrl.startsWith('bafk')) {
-            console.log('7[IMAGES] fetching from pinata', imageUrl)
             response = await pinataImageFetch.get(imageUrl, {
               responseType: 'arraybuffer'
             })
+          } else if (new URL(imageUrl)) {
+            response = await axios.get(imageUrl, { responseType: 'arraybuffer' })
           }
-          /*
-            .where('Atom.data', 'like', 'ipfs://%')
-            .orWhere('Atom.data', 'like', 'Qm%')
-            .orWhere('Atom.data', 'like', 'bafk%')
-          */
-          console.log('8 else response', response)
           data = response.data
         }
         const extension = getImageExtension(data)
         const filename = `${row.atom_id}.${extension}`
-        const filenameWithoutParams = filename.split('?')[0].split('&')[0]
-        console.log('9writing file', filenameWithoutParams)
-        await fs.writeFile(`public/img/atoms/${filenameWithoutParams}`, data)
+        await fs.writeFile(`public/img/atoms/${filename}`, data)
         await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
-          .update({ image_filename: filenameWithoutParams })
+          .update({ image_filename: filename })
       } catch (err) {
         console.error('[IMAGES] Error downloading atom image', row.atom_id, err.message)
         await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
