@@ -33,6 +33,9 @@ export default class TriplesController {
   public async getTriplesRankingsWithContents({ params, response }: HttpContextContract) {
     const { atoms } = params
     const [subjectId, predicateId, objectId] = atoms.split(',')
+    console.log(subjectId, ' | ', predicateId, ' | ', objectId)
+    console.log('where', subjectId ? 'subjectId' : 'predicateId', subjectId ? subjectId : predicateId)
+    console.log('andWhere', objectId ? 'objectId' : 'predicateId', objectId ? objectId : predicateId)
     const triples = await Triple.query()
       .where(subjectId ? 'subjectId' : 'predicateId', subjectId ? subjectId : predicateId)
       .andWhere(objectId ? 'objectId' : 'predicateId', objectId ? objectId : predicateId)

@@ -56,7 +56,7 @@ Route.get('atoms/most-relevant-x', 'AtomsController.getMostRelevantXAtoms')
 Route.get('x/user-atoms', 'AtomsController.getXUserAtom')
 Route.get('generate-json-data', 'AtomsController.generateJSONData')
 Route.resource('atoms', 'AtomsController').apiOnly()
-Route.get('atoms-with-contents/:id', 'AtomsController.showWithContents')
+Route.get('atoms-with-contents/:atomIds', 'AtomsController.showWithContents')
 Route.get('atoms/:atomId/all', 'AtomsController.getAtomContentsWithVaults')
 
 // exchange rates

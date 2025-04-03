@@ -4,12 +4,23 @@ import axios from "axios";
 import { uploadIterator } from "App/Controllers/Http/IpfsController";
 import fs from 'fs/promises'
 
-const PINATA_GATEWAY_KEY = Env.get('PINATA_GATEWAY_KEY')
+const PINATA_GATEWAY_TOKEN = Env.get('PINATA_GATEWAY_TOKEN')
 
 export const pinata = new PinataSDK({
   pinataJwt: Env.get('PINATA_JWT'),
-  pinataGateway: Env.get('PINATA_GATEWAY')
+  pinataGateway: PINATA_GATEWAY_TOKEN
 });
+
+const pinataImageFetch = axios.create({
+  baseURL: 'https://blush-legal-emu-115.mypinata.cloud/ipfs/',
+  timeout: 20000,
+  headers: {
+    'authorization': `Bearer ${Env.get('PINATA_JWT')}`
+  },
+  params: {
+    pinataGatewayToken: PINATA_GATEWAY_TOKEN
+  }
+})
 
 pinata.testAuthentication().then(resp => {
   console.log('resp', resp)
@@ -25,35 +36,9 @@ export const testPinataAuth = async () => {
   console.log('message', data)
 }
 
-// export const watchForUpdates = async () => {
-//   const { Client } = require('pg');
-//   const PG_USER = Env.get('PG_USER')
-//   const PG_PASSWORD = Env.get('PG_PASSWORD')
-//   const PG_HOST = Env.get('PG_HOST')
-//   const PG_PORT = Env.get('PG_PORT')
-//   const PG_DB_NAME = Env.get('PG_DB_NAME')
-//   const connectionString = `postgresql://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DB_NAME}`
-//   const client = new Client({
-//     connectionString,
-//   });
-
-//   client.connect();
-
-//   client.on('notification', (msg) => {
-//     console.log('Notification received:', msg.payload);
-//     // const data = JSON.parse(msg.payload);
-//     // Handle the notification (e.g., send a WebSocket update)
-//   });
-
-//   // listen to updates for atom_ipfs_data table
-//   client.query('LISTEN table_update');
-// }
-
 export const populateIPFSContent = async () => {
   uploadIterator().iterate()
   const { default: Database } = await import('@ioc:Adonis/Lucid/Database')
-  const { default: Redis } = await import('@ioc:Adonis/Addons/Redis')
-  const { default: Env } = await import('@ioc:Adonis/Core/Env')
 
   // select all rows from Atoms and right join to atom_ipfs_data
   // on atoms.id = atom_ipfs_data.atom_id
@@ -91,7 +76,6 @@ export const populateIPFSContent = async () => {
     //   setTimeout(populateIPFSContent, 500)
     //   return
     // }
-    const PINATA_GATEWAY_KEY = Env.get('PINATA_GATEWAY_KEY')
 
     const fetchIPFSContent = async (row: any) => {
       let hash = ''
@@ -100,7 +84,7 @@ export const populateIPFSContent = async () => {
 
       const { data } = await axios.get(`https://blush-legal-emu-115.mypinata.cloud/ipfs/${hash}`, {
         params: {
-          pinataGatewayToken: PINATA_GATEWAY_KEY
+          pinataGatewayToken: PINATA_GATEWAY_TOKEN
         },
         timeout: 10000 // 10 seconds timeout
       })
@@ -210,14 +194,6 @@ export const populateIPFSContent = async () => {
 
 export const populateImageFiles = async () => {
   const { default: Database } = await import('@ioc:Adonis/Lucid/Database')
-  const { default: Redis } = await import('@ioc:Adonis/Addons/Redis')
-  const { default: Env } = await import('@ioc:Adonis/Core/Env')
-
-  // select all rows from Atoms and right join to atom_ipfs_data
-  // on atoms.id = atom_ipfs_data.atom_id
-  // where atoms.data is like 'ipfs://' or starts with 'Qm' and atom_ipfs_data.contents is null
-  // for each row, get the contents from the ipfs url and store it in atom_ipfs_data.contents
-  // update atom_ipfs_data with the new contents
 
   // now need to read files from directory and see which are missing from atom_ipfs_data.image_hash
   try {
@@ -232,26 +208,27 @@ export const populateImageFiles = async () => {
       console.log('[IMAGES] images needing downloading', rows.length)
     }
     const files = await fs.readdir('public/img/atoms')
-    console.log('[IMAGES] image files.length', files.length)
-    console.log('files', files.length)
+    console.log('1[IMAGES] image files.length', files.length)
+    console.log('2 files', files.length)
 
     const processRow = async (row: any) => {
       const { contents } = row
       const imageUrl = contents.image || contents.image_url || contents.xAvatarUrl || contents.avatarUrl || contents.avatar_url
-      if (!imageUrl) {
+      if (!imageUrl || imageUrl === 'null') {
         await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
           .update({ image_attempts: 5 })
+        console.log('2.5 no imageUrl', row.atom_id)
         return
       }
       // fetch the image and then save it to the public/img/atoms directory
 
       try {
-        const filename = `${row.atom_id}.${imageUrl.split('.').pop()}`
-        const filenameWithoutParams = filename.split('?')[0].split('&')[0]
+        console.log('3 [IMAGES] trying', imageUrl)
         let data
+        let response
+        console.log('4 imageUrl', imageUrl)
         if (imageUrl.includes('_normal.')) {
           const imageUrlToFetch = imageUrl.replace('_normal.', '_400x400.')
-          let response
           try {
             response = await axios.get(imageUrlToFetch, {
               responseType: 'arraybuffer'
@@ -261,14 +238,31 @@ export const populateImageFiles = async () => {
               responseType: 'arraybuffer'
             })
           } finally {
+            console.log('5 includes _normal response', response.status)
             data = response.data
           }
         } else {
-          const response = await axios.get(imageUrl, {
-            responseType: 'arraybuffer'
-          })
+          console.log('6 in else')
+          if (imageUrl.includes('ipfs://')) {
+            response = await axios.get(imageUrl, { responseType: 'arraybuffer' })
+          } else if (imageUrl.startsWith('Qm') || imageUrl.startsWith('bafk')) {
+            console.log('7[IMAGES] fetching from pinata', imageUrl)
+            response = await pinataImageFetch.get(imageUrl, {
+              responseType: 'arraybuffer'
+            })
+          }
+          /*
+            .where('Atom.data', 'like', 'ipfs://%')
+            .orWhere('Atom.data', 'like', 'Qm%')
+            .orWhere('Atom.data', 'like', 'bafk%')
+          */
+          console.log('8 else response', response)
           data = response.data
         }
+        const extension = getImageExtension(data)
+        const filename = `${row.atom_id}.${extension}`
+        const filenameWithoutParams = filename.split('?')[0].split('&')[0]
+        console.log('9writing file', filenameWithoutParams)
         await fs.writeFile(`public/img/atoms/${filenameWithoutParams}`, data)
         await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
           .update({ image_filename: filenameWithoutParams })
@@ -325,3 +319,24 @@ export const populateImageFiles = async () => {
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+function getImageType(arrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer);
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'jpeg';
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) return 'png';
+  if (bytes[0] === 0x47 && bytes[1] === 0x49) return 'gif';
+  if (bytes[0] === 0x42 && bytes[1] === 0x4D) return 'bmp';
+  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) return 'webp';
+  return 'unknown';
+}
+const getImageExtension = (arrayBuffer) => {
+  const imageType = getImageType(arrayBuffer)
+  switch (imageType) {
+    case 'jpeg':
+      return 'jpg'
+    case 'png':
+      return 'png'
+    case 'gif':
+      return 'gif'
+  }
+}

@@ -20,7 +20,6 @@ export default class AtomsController {
 
     console.log('Full atoms structure:', JSON.stringify(atoms, null, 2))
     console.timeEnd('AtomsController->index')
-    console.log('atoms', atoms)
     return response.json(atoms)
   }
 
@@ -32,13 +31,16 @@ export default class AtomsController {
 
   public async showWithContents({ params, response }: HttpContextContract) {
     console.time('showWithContents')
-    const { id: atomId } = params
-    const atom = await Database.query()
-      .from('Atom')
-      .where('Atom.id', atomId)
-      .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
-      .first()
-    return response.json(atom)
+    const { atomIds } = params
+    const atomIdsArray = atomIds.split(',').map(Number)
+    // find using Atom model
+    const atoms = await Atom.query()
+      .whereIn('id', atomIdsArray)
+      .preload('atomIpfsData')
+      .preload('vault')
+    // sort in same order as atomIds
+    const sortedAtoms = atoms.sort((a, b) => atomIdsArray.indexOf(a.id) - atomIdsArray.indexOf(b.id))
+    return response.json(sortedAtoms)
   }
 
   public async getAtomContentsWithVaults({ params, response }: HttpContextContract) {
