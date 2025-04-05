@@ -69,8 +69,32 @@ export default class SearchAtomsController {
         .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
         .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
         .select(
-          'Atom.*',
-          'atom_ipfs_data.*',
+          // Select Atom fields explicitly with the table name to avoid conflicts
+          'Atom.id',
+          'Atom.walletId',
+          'Atom.creatorId',
+          'Atom.vaultId',
+          'Atom.data',
+          'Atom.type',
+          'Atom.emoji',
+          'Atom.label',
+          'Atom.image',
+          'Atom.valueId',
+          'Atom.blockNumber',
+          'Atom.blockTimestamp',
+          'Atom.transactionHash',
+          // Select atom_ipfs_data fields with aliases to avoid ID conflicts
+          'atom_ipfs_data.id as atom_ipfs_data_id',
+          'atom_ipfs_data.atom_id',
+          'atom_ipfs_data.contents',
+          'atom_ipfs_data.contents_attempts',
+          'atom_ipfs_data.image_attempts',
+          'atom_ipfs_data.image_hash',
+          'atom_ipfs_data.image_filename',
+          'atom_ipfs_data.created_at as atom_ipfs_data_created_at',
+          'atom_ipfs_data.updated_at as atom_ipfs_data_updated_at',
+          // Select Vault fields with aliases to avoid ID conflicts
+          'Vault.id as vault_id',
           'Vault.totalShares',
           'Vault.currentSharePrice',
           'Vault.positionCount'
