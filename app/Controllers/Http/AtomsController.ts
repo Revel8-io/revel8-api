@@ -8,108 +8,117 @@ import Atom from 'App/Models/Atom'
 const { IS_ATOMS, IS_RELEVANT_X_ATOM } = CONFIG
 
 export default class AtomsController {
-
   public async index({ request, response }: HttpContextContract) {
-    /*
-    *
-    const sortQueriesMap: Record<SortOption, Record<string, any>> = {
-      'most-recent': {
-        orderBy: 'blockTimestamp',
-        order: 'desc'
-      },
-      'popularity': {
-        orderBy: 'atom.vault.positionCount',
-        order: 'desc'
-      },
-      'highest-stake': {
-        orderBy: 'atom.vault.totalShares * atom.vault.currentSharePrice',
-        order: 'desc'
-      },
-      'alphabetical': {
-        orderBy: 'atom_ipfs_data.contents->>name',
-        order: 'asc'
-      },
-    }
-    */
-
-    // Parse and validate pagination parameters
-    let page = 1
-    let perPage = 20
+    // Parse pagination and sorting parameters with safe defaults
+    let page = 1;
+    let perPage = 20;
     try {
-      page = parseInt(request.input('page', '1'))
+      page = parseInt(request.qs().page || '1')
       if (isNaN(page) || page < 1) page = 1
 
-      perPage = parseInt(request.input('perPage', '20'))
+      perPage = parseInt(request.qs().perPage || '20')
       if (isNaN(perPage) || perPage < 1) perPage = 20
     } catch (error) {
       console.error('Pagination parameter error:', error)
     }
 
-    const sortType = request.input('sortType', 'most-recent')
-    const order = request.input('order', 'desc')
+    // Get sorting parameters - prioritize 'sort' special case
+    const sort = request.qs().sort
+    
+    // Only use orderBy/direction as fallback if sort is not specified
+    let orderBy = request.qs().orderBy || 'blockTimestamp'
+    const direction = request.qs().direction || 'desc'
+    const order = direction === 'asc' ? 'asc' : 'desc'
 
-    // Handle different sort types
-    if (sortType === 'highest-stake' || sortType === 'popularity') {
-      // Use Database query builder for complex sorting
-      const query = Database.query()
-        .from('Atom')
-        .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
-        .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
-        .select(
-          'Atom.*',
-          'atom_ipfs_data.*',
-          'Vault.totalShares',
-          'Vault.currentSharePrice',
-          'Vault.positionCount'
-        )
+    // Determine sorting method based on sort parameter first
+    let sortByVaultValue = false
+    let sortByPositionCount = false
+    let sortByAlphabetical = false
+    let sortByMostRecent = true // Default
 
-      if (sortType === 'highest-stake') {
-        query.orderByRaw(`${actualOrderByMapping['atom.vault.totalShares * atom.vault.currentSharePrice']} ${order}`)
-      } else {
-        // popularity
-        query.orderBy(actualOrderByMapping['atom.vault.positionCount'], order)
+    // If sort parameter is provided, it takes precedence
+    if (sort) {
+      // Reset default sorting
+      sortByMostRecent = false
+      
+      switch (sort) {
+        case 'most-recent':
+          sortByMostRecent = true
+          break
+        case 'highest-stake':
+          sortByVaultValue = true
+          break
+        case 'popularity':
+          sortByPositionCount = true
+          break
+        case 'alphabetical':
+          sortByAlphabetical = true
+          break
+        default:
+          // If sort is not one of our special cases, fall back to orderBy/direction
+          sortByMostRecent = true
       }
-
-      // Manual pagination
-      const countResult = await Database.from('Atom').count('* as total').first()
-      const total = countResult ? parseInt(countResult.total as string) : 0
-
-      const safeLimit = Math.max(1, perPage)
-      const safeOffset = Math.max(0, (page - 1) * safeLimit)
-
-      query.limit(safeLimit).offset(safeOffset)
-      const atoms = await query
-
-      // Create pagination metadata
-      const lastPage = Math.ceil(total / safeLimit) || 1
-      return response.json({
-        meta: {
-          total,
-          per_page: safeLimit,
-          current_page: page,
-          last_page: lastPage,
-        },
-        data: atoms
-      })
-
-    } else if (sortType === 'alphabetical') {
-      // Use Lucid query for alphabetical sorting by name
-      const atoms = await Atom.query()
-        .preload('atomIpfsData')
-        .preload('vault')
-        .orderByRaw(`${actualOrderByMapping['atom_ipfs_data.contents->>name']} ${order}`)
-        .paginate(page, perPage)
-      return response.json(atoms)
-
     } else {
-      // Default 'most-recent' sorting by blockTimestamp
-      const atoms = await Atom.query()
-        .preload('atomIpfsData')
-        .preload('vault')
-        .orderBy(actualOrderByMapping['blockTimestamp'], order)
-        .paginate(page, perPage)
-      return response.json(atoms)
+      // Sort parameter not provided, determine sorting method from orderBy (legacy behavior)
+      sortByVaultValue = request.qs().sortByVaultValue === 'true' || orderBy === 'vault.totalShares'
+      sortByPositionCount = orderBy === 'positionCount' || orderBy === 'vault.positionCount'
+      sortByAlphabetical = orderBy === 'atomIpfsData.contents>>name'
+      sortByMostRecent = !sortByVaultValue && !sortByPositionCount && !sortByAlphabetical
     }
+
+    // We always need to use a join query for proper sorting
+    const query = Database.query()
+      .from('Atom')
+      .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+      .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
+      .select(
+        'Atom.*',
+        'atom_ipfs_data.*',
+        'Vault.totalShares',
+        'Vault.currentSharePrice',
+        'Vault.positionCount'
+      )
+
+    // Apply the appropriate sorting
+    if (sortByVaultValue) {
+      // Sort by vault value (totalShares * currentSharePrice)
+      query.orderByRaw(`("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC / POWER(10, 18)) ${order === 'asc' ? 'ASC' : 'DESC'}`)
+    } else if (sortByPositionCount) {
+      // Sort by position count
+      query.orderBy('Vault.positionCount', order)
+    } else if (sortByAlphabetical) {
+      // Sort alphabetically by name
+      query.orderByRaw(`atom_ipfs_data.contents->>'name' ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
+    } else if (sortByMostRecent) {
+      // Sort by most recent (blockTimestamp)
+      query.orderBy('Atom.blockTimestamp', order)
+    }
+
+    // Execute query with pagination
+    const countResult = await Database.from('Atom').count('* as total').first()
+    const total = countResult ? parseInt(countResult.total as string) : 0
+
+    const safeLimit = Math.max(1, perPage)
+    const safeOffset = Math.max(0, (page - 1) * safeLimit)
+
+    query.limit(safeLimit).offset(safeOffset)
+    const atoms = await query
+
+    // Create pagination metadata
+    const lastPage = Math.ceil(total / safeLimit) || 1
+    return response.json({
+      meta: {
+        total,
+        per_page: safeLimit,
+        current_page: page,
+        last_page: lastPage,
+        first_page: 1,
+        last_page_url: `?page=${lastPage}`,
+        next_page_url: page < lastPage ? `?page=${page + 1}` : null,
+        previous_page_url: page > 1 ? `?page=${page - 1}` : null,
+      },
+      data: atoms
+    })
   }
 
   public async searchAtomsWithContentsVaults({ params, request, response }: HttpContextContract) {
@@ -128,16 +137,52 @@ export default class AtomsController {
       console.error('Pagination parameter error:', error)
     }
 
-    // Get sorting parameters
+    // Get sorting parameters - prioritize 'sort' special case
+    const sort = request.qs().sort
+    
+    // Only use orderBy/direction as fallback if sort is not specified
     let orderBy = request.qs().orderBy || 'blockTimestamp'
-    const order = request.qs().order === 'asc' ? 'asc' : 'desc'
+    const direction = request.qs().direction || 'desc'
+    const order = direction === 'asc' ? 'asc' : 'desc'
 
-    // Special sorting options
-    const sortByVaultValue = request.qs().sortByVaultValue === 'true'
-    const sortByPositionCount = orderBy === 'positionCount'
+    // Determine sorting method based on sort parameter first
+    let sortByVaultValue = false
+    let sortByPositionCount = false
+    let sortByAlphabetical = false
+    let sortByMostRecent = true // Default
 
-    // If sorting by position count, we'll need to use the custom DB query
-    const needsCustomSorting = sortByVaultValue || sortByPositionCount
+    // If sort parameter is provided, it takes precedence
+    if (sort) {
+      // Reset default sorting
+      sortByMostRecent = false
+      
+      switch (sort) {
+        case 'most-recent':
+          sortByMostRecent = true
+          break
+        case 'highest-stake':
+          sortByVaultValue = true
+          break
+        case 'popularity':
+          sortByPositionCount = true
+          break
+        case 'alphabetical':
+          sortByAlphabetical = true
+          break
+        default:
+          // If sort is not one of our special cases, fall back to orderBy/direction
+          sortByMostRecent = true
+      }
+    } else {
+      // Sort parameter not provided, determine sorting method from orderBy (legacy behavior)
+      sortByVaultValue = request.qs().sortByVaultValue === 'true' || orderBy === 'vault.totalShares'
+      sortByPositionCount = orderBy === 'positionCount' || orderBy === 'vault.positionCount'
+      sortByAlphabetical = orderBy === 'atomIpfsData.contents>>name'
+      sortByMostRecent = !sortByVaultValue && !sortByPositionCount && !sortByAlphabetical
+    }
+
+    // If sorting by special cases, we'll need to use the custom DB query
+    const needsCustomSorting = sortByVaultValue || sortByPositionCount || sortByAlphabetical
 
     // For standard query, only allow certain order by columns
     if (!needsCustomSorting) {
@@ -183,6 +228,12 @@ export default class AtomsController {
       } else if (sortByPositionCount) {
         // Sort by position count
         atomsQuery.orderBy('Vault.positionCount', order)
+      } else if (sortByAlphabetical) {
+        // Sort alphabetically by name
+        atomsQuery.orderByRaw(`atom_ipfs_data.contents->>'name' ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
+      } else if (sortByMostRecent) {
+        // Sort by most recent (blockTimestamp)
+        atomsQuery.orderBy('Atom.blockTimestamp', order)
       }
 
       // Custom pagination
