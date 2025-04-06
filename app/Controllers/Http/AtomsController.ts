@@ -24,7 +24,7 @@ export default class AtomsController {
 
     // Get sorting parameters - prioritize 'sort' special case
     const sort = request.qs().sort
-    
+
     // Only use orderBy/direction as fallback if sort is not specified
     let orderBy = request.qs().orderBy || 'blockTimestamp'
     const direction = request.qs().direction || 'desc'
@@ -40,7 +40,7 @@ export default class AtomsController {
     if (sort) {
       // Reset default sorting
       sortByMostRecent = false
-      
+
       switch (sort) {
         case 'most-recent':
           sortByMostRecent = true
@@ -163,7 +163,7 @@ export default class AtomsController {
 
     // Get sorting parameters - prioritize 'sort' special case
     const sort = request.qs().sort
-    
+
     // Only use orderBy/direction as fallback if sort is not specified
     let orderBy = request.qs().orderBy || 'blockTimestamp'
     const direction = request.qs().direction || 'desc'
@@ -179,7 +179,7 @@ export default class AtomsController {
     if (sort) {
       // Reset default sorting
       sortByMostRecent = false
-      
+
       switch (sort) {
         case 'most-recent':
           sortByMostRecent = true
@@ -339,8 +339,72 @@ export default class AtomsController {
 
   public async show({ params, response }: HttpContextContract) {
     const { id: atomId } = params
-    const atom = await Database.query().from('Atom').where('id', atomId).first()
+    // Use the Atom model to include related data
+    const atom = await Atom.query()
+      .where('id', atomId)
+      .preload('atomIpfsData')
+      .preload('vault')
+      .first()
+
+    if (!atom) {
+      // If not found with the model, try direct database query as fallback
+      const rawAtom = await Database.query()
+        .from('Atom')
+        .where('Atom.id', atomId)
+        .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+        .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
+        .select(
+          'Atom.*',
+          'atom_ipfs_data.contents',
+          'atom_ipfs_data.image_filename',
+          'Vault.totalShares',
+          'Vault.currentSharePrice',
+          'Vault.positionCount'
+        )
+        .first()
+
+      return response.json(rawAtom)
+    }
+
     return response.json(atom)
+  }
+
+  /**
+   * Fetches multiple atoms by their IDs, including their associated IPFS data and vault information.
+   * Expects a comma-separated string of IDs in the 'ids' route parameter.
+   */
+  public async showMultiple({ params, response }: HttpContextContract) {
+    const { ids } = params
+
+    if (!ids) {
+      return response.badRequest({ message: 'Missing atom IDs parameter.' })
+    }
+
+    const atomIdsArray = ids.split(',').map(id => parseInt(id.trim(), 10))
+
+    // Validate IDs
+    if (atomIdsArray.some(isNaN)) {
+      return response.badRequest({ message: 'Invalid atom IDs provided. IDs must be numeric.' })
+    }
+
+    if (atomIdsArray.length === 0) {
+        return response.json([]) // Return empty array if no valid IDs provided
+    }
+
+    try {
+      const atoms = await Atom.query()
+        .whereIn('id', atomIdsArray)
+        .preload('atomIpfsData')
+        .preload('vault')
+
+      // Optionally, sort the results to match the input order
+      const sortedAtoms = atoms.sort((a, b) => atomIdsArray.indexOf(a.id) - atomIdsArray.indexOf(b.id))
+
+      return response.json(sortedAtoms)
+    } catch (error) {
+        console.error('Error fetching multiple atoms:', error)
+        return response.internalServerError({ message: 'An error occurred while fetching atoms.' })
+    }
   }
 
   public async showWithContents({ params, response }: HttpContextContract) {
@@ -358,13 +422,80 @@ export default class AtomsController {
 
   public async getAtomContentsWithVaults({ params, response }: HttpContextContract) {
     const { atomId } = params
+
+    // Try using the Atom model first (better structure)
+    try {
+      const atom = await Atom.query()
+        .where('id', atomId)
+        .preload('atomIpfsData')
+        .preload('vault')
+        .first()
+
+      if (atom) {
+        return response.json(atom)
+      }
+    } catch (err) {
+      console.error('Error fetching atom with model:', err)
+    }
+
+    // Fallback to direct database query with explicit column selection
     const atom = await Database.query()
       .from('Atom')
       .where('Atom.id', atomId)
       .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
       .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
+      .select(
+        // Select Atom fields
+        'Atom.id',
+        'Atom.walletId',
+        'Atom.creatorId',
+        'Atom.vaultId',
+        'Atom.data',
+        'Atom.type',
+        'Atom.emoji',
+        'Atom.label',
+        'Atom.image',
+        'Atom.valueId',
+        'Atom.blockNumber',
+        'Atom.blockTimestamp',
+        'Atom.transactionHash',
+        // Select atom_ipfs_data fields
+        'atom_ipfs_data.id as atomIpfsDataId',
+        'atom_ipfs_data.atom_id',
+        'atom_ipfs_data.contents',
+        'atom_ipfs_data.contents_attempts',
+        'atom_ipfs_data.image_attempts',
+        'atom_ipfs_data.image_hash',
+        'atom_ipfs_data.image_filename',
+        // Select Vault fields
+        'Vault.id as vaultId',
+        'Vault.totalShares',
+        'Vault.currentSharePrice',
+        'Vault.positionCount'
+      )
       .first()
-    return response.json(atom)
+
+    // Transform the data to match the expected structure
+    const result = atom ? {
+      ...atom,
+      atomIpfsData: {
+        id: atom.atomIpfsDataId,
+        atom_id: atom.atom_id,
+        contents: atom.contents,
+        contents_attempts: atom.contents_attempts,
+        image_attempts: atom.image_attempts,
+        image_hash: atom.image_hash,
+        image_filename: atom.image_filename
+      },
+      vault: {
+        id: atom.vaultId,
+        totalShares: atom.totalShares,
+        currentSharePrice: atom.currentSharePrice,
+        positionCount: atom.positionCount
+      }
+    } : null
+
+    return response.json(result)
   }
 
   public async getMostRelevantXAtoms({ response }: HttpContextContract) {
