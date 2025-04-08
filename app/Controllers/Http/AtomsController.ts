@@ -55,94 +55,65 @@ export default class AtomsController {
           sortByAlphabetical = true
           break
         default:
-          // If sort is not one of our special cases, fall back to orderBy/direction
+          // If sort is not one of our special cases, fall back to default
           sortByMostRecent = true
       }
     } else {
       // Sort parameter not provided, determine sorting method from orderBy (legacy behavior)
-      sortByVaultValue = request.qs().sortByVaultValue === 'true' || orderBy === 'vault.totalShares'
+      // Check legacy orderBy values if needed
+      sortByVaultValue = request.qs().sortByVaultValue === 'true' || orderBy === 'vault.totalShares' // Adjust legacy check if needed
       sortByPositionCount = orderBy === 'positionCount' || orderBy === 'vault.positionCount'
       sortByAlphabetical = orderBy === 'atomIpfsData.contents>>name'
+      // Determine if most recent based on other flags
       sortByMostRecent = !sortByVaultValue && !sortByPositionCount && !sortByAlphabetical
     }
 
-    // We always need to use a join query for proper sorting
-    const query = Database.query()
-      .from('Atom')
-      .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
-      .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
-      .select(
-        // Select Atom fields explicitly with the table name to avoid conflicts
-        'Atom.id',
-        'Atom.walletId',
-        'Atom.creatorId',
-        'Atom.vaultId',
-        'Atom.data',
-        'Atom.type',
-        'Atom.emoji',
-        'Atom.label',
-        'Atom.image',
-        'Atom.valueId',
-        'Atom.blockNumber',
-        'Atom.blockTimestamp',
-        'Atom.transactionHash',
-        // Select atom_ipfs_data fields with aliases to avoid ID conflicts
-        'atom_ipfs_data.id as atom_ipfs_data_id',
-        'atom_ipfs_data.atom_id',
-        'atom_ipfs_data.contents',
-        'atom_ipfs_data.contents_attempts',
-        'atom_ipfs_data.image_attempts',
-        'atom_ipfs_data.image_hash',
-        'atom_ipfs_data.image_filename',
-        'atom_ipfs_data.created_at as atom_ipfs_data_created_at',
-        'atom_ipfs_data.updated_at as atom_ipfs_data_updated_at',
-        // Select Vault fields with aliases to avoid ID conflicts
-        'Vault.id as vault_id',
-        'Vault.totalShares',
-        'Vault.currentSharePrice',
-        'Vault.positionCount'
-      )
+    // Start query with the Atom model
+    const query = Atom.query()
+      .preload('atomIpfsData') // Preload related data
+      .preload('vault')
 
-    // Apply the appropriate sorting
-    if (sortByVaultValue) {
-      // Sort by vault value (totalShares * currentSharePrice)
-      query.orderByRaw(`("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC / POWER(10, 18)) ${order === 'asc' ? 'ASC' : 'DESC'}`)
-    } else if (sortByPositionCount) {
-      // Sort by position count
-      query.orderBy('Vault.positionCount', order)
-    } else if (sortByAlphabetical) {
-      // Sort alphabetically by name
-      query.orderByRaw(`atom_ipfs_data.contents->>'name' ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
-    } else if (sortByMostRecent) {
-      // Sort by most recent (blockTimestamp)
-      query.orderBy('Atom.blockTimestamp', order)
+    // Conditionally join tables ONLY if needed for sorting
+    // We need joins to make related table columns available for orderBy
+    if (sortByVaultValue || sortByPositionCount) {
+        // Use 'vaults' as alias if your table name is 'vaults' and relation is 'vault'
+        // Adjust 'vaults' to your actual Vault table name if different
+        query.leftJoin('vaults as Vault', 'Atom.vaultId', 'Vault.id')
+    }
+    if (sortByAlphabetical) {
+        // Adjust 'atom_ipfs_data' to your actual table name if different
+        query.leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
     }
 
-    // Execute query with pagination
-    const countResult = await Database.from('Atom').count('* as total').first()
-    const total = countResult ? parseInt(countResult.total as string) : 0
+    // Apply the appropriate sorting
+    // Note: When joining, ensure column names are unambiguous (e.g., 'Vault.positionCount')
+    if (sortByVaultValue) {
+      // Sort by vault value (totalShares * currentSharePrice)
+      // Ensure 'Vault' alias matches the join alias
+      query.orderByRaw(`("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC / POWER(10, 18)) ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
+    } else if (sortByPositionCount) {
+      // Sort by position count using the joined table
+      // Ensure 'Vault' alias matches the join alias
+      query.orderBy('Vault.positionCount', order)
+    } else if (sortByAlphabetical) {
+      // Sort alphabetically by name using the joined table
+      query.orderByRaw(`atom_ipfs_data.contents->>'name' ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
+    } else { // Default or sortByMostRecent
+      // Sort by most recent (blockTimestamp on Atom model) - No join needed for this
+      // Explicitly qualify with model table name if needed, but usually not required here
+      query.orderBy('blockTimestamp', order) // Assumes 'blockTimestamp' is directly on the Atom model/table
+    }
 
-    const safeLimit = Math.max(1, perPage)
-    const safeOffset = Math.max(0, (page - 1) * safeLimit)
+    // Execute query with pagination using Lucid's paginate method
+    // Ensure page and perPage are valid numbers
+    const safePerPage = Math.max(1, perPage)
+    const safePage = Math.max(1, page)
 
-    query.limit(safeLimit).offset(safeOffset)
-    const atoms = await query
+    const atoms = await query.paginate(safePage, safePerPage)
 
-    // Create pagination metadata
-    const lastPage = Math.ceil(total / safeLimit) || 1
-    return response.json({
-      meta: {
-        total,
-        per_page: safeLimit,
-        current_page: page,
-        last_page: lastPage,
-        first_page: 1,
-        last_page_url: `?page=${lastPage}`,
-        next_page_url: page < lastPage ? `?page=${page + 1}` : null,
-        previous_page_url: page > 1 ? `?page=${page - 1}` : null,
-      },
-      data: atoms
-    })
+    // Return the paginated result directly
+    // Lucid's paginate result includes meta and data
+    return response.json(atoms)
   }
 
   public async searchAtomsWithContentsVaults({ params, request, response }: HttpContextContract) {
