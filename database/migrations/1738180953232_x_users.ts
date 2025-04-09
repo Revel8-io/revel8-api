@@ -6,18 +6,18 @@ export default class extends BaseSchema {
   public async up () {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
-      table.string('x_user_id')
-      table.string('x_username')
-      table.string('x_name')
-      table.string('x_profile_image_url')
-      table.string('x_description')
-      table.string('x_user_created_at')
+      table.string('xUserId')
+      table.string('xUsername')
+      table.string('xName')
+      table.string('xProfileImageUrl')
+      table.string('xDescription')
+      table.string('xUserCreatedAt')
 
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
        */
-      table.timestamp('created_at', { useTz: true })
-      table.timestamp('updated_at', { useTz: true })
+      table.timestamp('createdAt', { useTz: true })
+      table.timestamp('updatedAt', { useTz: true })
     })
   }
 

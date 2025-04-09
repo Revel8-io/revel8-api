@@ -1,9 +1,10 @@
-import { BaseModel, column, HasOne, hasOne, BelongsTo, belongsTo } from '@ioc:Adonis/Lucid/Orm'
+import { column, HasOne, hasOne, BelongsTo, belongsTo } from '@ioc:Adonis/Lucid/Orm'
 import Atom from './Atom'
 import Triple from './Triple'
+import AppBaseModel from './AppBaseModel'
 
 // id, atomId, tripleId, totalShares, currentSharePrice, positionCount
-export default class Vault extends BaseModel {
+export default class Vault extends AppBaseModel {
   public static table = 'Vault'
 
   @column({ isPrimary: true })

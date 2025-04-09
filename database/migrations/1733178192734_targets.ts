@@ -7,15 +7,15 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       table.string('username')
-      table.string('display_name')
-      table.string('image_url')
+      table.string('displayName')
+      table.string('imageUrl')
       table.string('url')
 
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
        */
-      table.timestamp('created_at', { useTz: true })
-      table.timestamp('updated_at', { useTz: true })
+      table.timestamp('createdAt', { useTz: true })
+      table.timestamp('updatedAt', { useTz: true })
     })
   }
 

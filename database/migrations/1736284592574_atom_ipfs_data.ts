@@ -6,19 +6,19 @@ export default class extends BaseSchema {
   public async up () {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id').primary()
-      table.bigInteger('atom_id').unsigned().unique()
+      table.bigInteger('atomId').unsigned().unique()
       table.jsonb('contents')
-      table.integer('contents_attempts').defaultTo(1)
-      table.integer('image_attempts').defaultTo(1)
-      table.string('image_hash').nullable()
-      table.string('image_filename').nullable()
-      table.foreign('atom_id').references('Atom.id')
+      table.integer('contentsAttempts').defaultTo(1)
+      table.integer('imageAttempts').defaultTo(1)
+      table.string('imageHash').nullable()
+      table.string('imageFilename').nullable()
+      table.foreign('atomId').references('Atom.id')
 
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
        */
-      table.timestamp('created_at', { useTz: true })
-      table.timestamp('updated_at', { useTz: true })
+      table.timestamp('createdAt', { useTz: true })
+      table.timestamp('updatedAt', { useTz: true })
     })
   }
 

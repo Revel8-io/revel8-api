@@ -1,48 +1,45 @@
-import { BaseModel, column, belongsTo, BelongsTo, computed } from '@ioc:Adonis/Lucid/Orm'
+import { column, belongsTo, BelongsTo } from '@ioc:Adonis/Lucid/Orm'
 import Atom from './Atom'
 import { DateTime } from 'luxon'
+import AppBaseModel from './AppBaseModel'
 
 // id, atom_id, contents, contents_attempts, image_attempts, image_hash, image_filename, created_at, updated_at
 
-export default class AtomIpfsData extends BaseModel {
-  public static table = 'atom_ipfs_data'
-  public serializeExtras = true
-  public static hidden = ['image_filename', 'image_attempts', 'contents_attempts']
+export default class AtomIpfsData extends AppBaseModel {
+  public static table = 'AtomIpfsData'
+  public static hidden = ['imageFilename', 'imageAttempts', 'contentsAttempts']
 
   @column({ isPrimary: true })
   public id: number
 
-  @column()
-  public atom_id: number
+  @column({ columnName: 'atomId' })
+  public atomId: number
 
   @belongsTo(() => Atom, {
-    foreignKey: 'atom_id',
+    foreignKey: 'atomId',
     localKey: 'id'
   })
   public atom: BelongsTo<typeof Atom>
 
-  @column()
+  @column({ columnName: 'contents' })
   public contents: any
 
-  @column({ serializeAs: null })
-  public contents_attempts: number
+  @column({ columnName: 'contentsAttempts' })
+  public contentsAttempts: number
 
-  @column({ serializeAs: null })
-  public image_attempts: number
+  @column({ columnName: 'imageAttempts' })
+  public imageAttempts: number
 
-  @column({ serializeAs: null })
-  public image_hash: string | null
+  @column({ columnName: 'imageHash' })
+  public imageHash: string | null
 
-  @column({ serializeAs: null })
-  public image_filename: string | null
+  @column({ columnName: 'imageFilename' })
+  public imageFilename: string | null
 
   @column.dateTime({ autoCreate: true })
-  public created_at: DateTime | null
+  public createdAt: DateTime | null
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  public updated_at: DateTime | null
+  public updatedAt: DateTime | null
 
-  public serializeKey(key: string) {
-    return key
-  }
 }

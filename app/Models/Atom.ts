@@ -1,15 +1,16 @@
-import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
+import { column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import Vault from './Vault'
 import AtomIpfsData from './AtomIpfsData'
+import AppBaseModel from './AppBaseModel'
 // id, walletId, creatorId, vaultId, data, type, emoji, label, image, valueId, blockNumber, blockTimestamp, transactionHash
 
-export default class Atom extends BaseModel {
+export default class Atom extends AppBaseModel {
   public static table = 'Atom'
 
   @column({ isPrimary: true })
   public id: number
 
-  @hasOne(() => AtomIpfsData, { foreignKey: 'atom_id', localKey: 'id' })
+  @hasOne(() => AtomIpfsData, { foreignKey: 'atomId', localKey: 'id' })
   public atomIpfsData: HasOne<typeof AtomIpfsData>
 
   @column({ columnName: 'walletId' })
