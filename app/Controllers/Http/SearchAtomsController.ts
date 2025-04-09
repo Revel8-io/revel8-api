@@ -19,7 +19,7 @@ export default class SearchAtomsController {
 
     // Get sorting parameters - prioritize 'sort' special case
     const sort = request.input('sort')
-    
+
     // Only use legacy parameters as fallback
     const orderBy = request.input('orderBy', 'blockTimestamp')
     const direction = request.input('direction', 'desc')
@@ -27,7 +27,7 @@ export default class SearchAtomsController {
 
     // Determine the actual sort type based on the 'sort' parameter
     let sortType = 'most-recent'
-    
+
     // If sort parameter is provided, it takes precedence
     if (sort) {
       switch (sort) {
@@ -53,7 +53,7 @@ export default class SearchAtomsController {
         sortType = 'highest-stake'
       } else if (orderBy === 'atom.vault.positionCount' || orderBy === 'positionCount') {
         sortType = 'popularity'
-      } else if (orderBy === 'atomIpfsData.contents>>name' || orderBy === 'atom_ipfs_data.contents->>name') {
+      } else if (orderBy === 'atomIpfsData.contents>>name' || orderBy === 'AtomIpfsData.contents->>name') {
         sortType = 'alphabetical'
       } else {
         // Use the provided sortType or default to most-recent
@@ -66,7 +66,7 @@ export default class SearchAtomsController {
       // Use Database query builder for complex sorting
       const query = Database.query()
         .from('Atom')
-        .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
         .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
         .select(
           // Select Atom fields explicitly with the table name to avoid conflicts
@@ -83,18 +83,18 @@ export default class SearchAtomsController {
           'Atom.blockNumber',
           'Atom.blockTimestamp',
           'Atom.transactionHash',
-          // Select atom_ipfs_data fields with aliases to avoid ID conflicts
-          'atom_ipfs_data.id as atom_ipfs_data_id',
-          'atom_ipfs_data.atom_id',
-          'atom_ipfs_data.contents',
-          'atom_ipfs_data.contents_attempts',
-          'atom_ipfs_data.image_attempts',
-          'atom_ipfs_data.image_hash',
-          'atom_ipfs_data.image_filename',
-          'atom_ipfs_data.created_at as atom_ipfs_data_created_at',
-          'atom_ipfs_data.updated_at as atom_ipfs_data_updated_at',
+          // Select AtomIpfsData fields with aliases to avoid ID conflicts
+          'AtomIpfsData.id as atomIpfsDataId',
+          'AtomIpfsData.atomId',
+          'AtomIpfsData.contents',
+          'AtomIpfsData.contentsAttempts',
+          'AtomIpfsData.imageAttempts',
+          'AtomIpfsData.imageHash',
+          'AtomIpfsData.imageFilename',
+          'AtomIpfsData.createdAt as atomIpfsDataCreatedAt',
+          'AtomIpfsData.updatedAt as atomIpfsDataUpdatedAt',
           // Select Vault fields with aliases to avoid ID conflicts
-          'Vault.id as vault_id',
+          'Vault.id as vaultId',
           'Vault.totalShares',
           'Vault.currentSharePrice',
           'Vault.positionCount'
@@ -134,17 +134,17 @@ export default class SearchAtomsController {
       // We need to use a join to sort by a field in the atomIpfsData table
       const query = Database.query()
         .from('Atom')
-        .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atomId')
         .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
         .select(
           'Atom.*',
-          'atom_ipfs_data.*',
+          'AtomIpfsData.*',
           'Vault.totalShares',
           'Vault.currentSharePrice',
           'Vault.positionCount'
         )
-        .orderByRaw(`${actualOrderByMapping['atom_ipfs_data.contents->>name']} ${order}`);
-      
+        .orderByRaw(`${actualOrderByMapping['AtomIpfsData.contents->>name']} ${order}`);
+
       // Manual pagination
       const countResult = await Database.from('Atom').count('* as total').first()
       const total = countResult ? parseInt(countResult.total as string) : 0
@@ -192,6 +192,6 @@ const actualOrderByMapping = {
     '("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC / POWER(10, 18))',
 
   // alphabetical
-  'atom_ipfs_data.contents->>name': "atom_ipfs_data.contents->>'name'",
-  'atomIpfsData.contents>>name': "atom_ipfs_data.contents->>'name'"
+  'atomIpfsData.contents->>name': "AtomIpfsData.contents->>'name'",
+  'atomIpfsData.contents>>name': "AtomIpfsData.contents->>'name'"
 }

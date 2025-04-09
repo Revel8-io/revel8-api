@@ -24,8 +24,8 @@ export default class extends BaseSeeder {
       // console.log('inserting', item)
       // remove 'id' from item
       delete item.id
+      await Database.table('AtomIpfsData').insert({ ...item })
       try {
-        await Database.table('atom_ipfs_data').insert({ ...item })
       } catch (error) {
         console.log('error', error)
       }

@@ -231,14 +231,14 @@ export interface AdonisSchemaVersion {
 
 export interface AtomIpfsData {
   id: number; // integer
-  atom_id: string | null; // bigint
+  atomId: string | null; // bigint
   contents: any | null; // jsonb
-  contents_attempts: number | null; // integer
-  image_attempts: number | null; // integer
-  image_hash: string | null; // character varying
-  image_filename: string | null; // character varying
-  created_at: Date | null; // timestamp with time zone
-  updated_at: Date | null; // timestamp with time zone
+  contentsAttempts: number | null; // integer
+  imageAttempts: number | null; // integer
+  imageHash: string | null; // character varying
+  imageFilename: string | null; // character varying
+  createdAt: Date | null; // timestamp with time zone
+  updatedAt: Date | null; // timestamp with time zone
 }
 
 export interface Note {
@@ -246,38 +246,38 @@ export interface Note {
   author: string | null; // character varying
   target: string | null; // character varying
   note: string | null; // character varying
-  target_id: string | null; // character varying
-  related_tweet_url: string | null; // character varying
-  related_tweet_id: string | null; // character varying
-  created_at: Date | null; // timestamp with time zone
-  updated_at: Date | null; // timestamp with time zone
+  targetId: string | null; // character varying
+  relatedTweetUrl: string | null; // character varying
+  relatedTweetId: string | null; // character varying
+  createdAt: Date | null; // timestamp with time zone
+  updatedAt: Date | null; // timestamp with time zone
 }
 
 export interface Target {
   id: number; // integer
   username: string | null; // character varying
-  display_name: string | null; // character varying
-  image_url: string | null; // character varying
+  displayName: string | null; // character varying
+  imageUrl: string | null; // character varying
   url: string | null; // character varying
-  created_at: Date | null; // timestamp with time zone
-  updated_at: Date | null; // timestamp with time zone
+  createdAt: Date | null; // timestamp with time zone
+  updatedAt: Date | null; // timestamp with time zone
 }
 
 export interface User {
   id: string | null; // character varying
   username: string | null; // character varying
-  created_at: Date | null; // timestamp with time zone
-  updated_at: Date | null; // timestamp with time zone
+  createdAt: Date | null; // timestamp with time zone
+  updatedAt: Date | null; // timestamp with time zone
 }
 
 export interface XUser {
   id: number; // integer
-  x_user_id: string | null; // character varying
-  x_username: string | null; // character varying
-  x_name: string | null; // character varying
-  x_profile_image_url: string | null; // character varying
-  x_description: string | null; // character varying
-  x_user_created_at: string | null; // character varying
-  created_at: Date | null; // timestamp with time zone
-  updated_at: Date | null; // timestamp with time zone
+  xUserId: string | null; // character varying
+  xUsername: string | null; // character varying
+  xName: string | null; // character varying
+  xProfileImageUrl: string | null; // character varying
+  xDescription: string | null; // character varying
+  xUserCreatedAt: string | null; // character varying
+  createdAt: Date | null; // timestamp with time zone
+  updatedAt: Date | null; // timestamp with time zone
 }

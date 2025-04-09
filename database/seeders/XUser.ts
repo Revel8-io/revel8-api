@@ -12,21 +12,21 @@ export default class extends BaseSeeder {
     // remove array objects with duplicate id value
     const filteredJsonData = jsonData.filter((item: any) => {
       if (
-        existingIds.includes(item.x_user_id) ||
-        existingUsernames.includes(item.x_username)
+        existingIds.includes(item.xUserId) ||
+        existingUsernames.includes(item.xUsername)
       ) {
         return false
       }
-      existingIds.push(item.x_user_id)
-      existingUsernames.push(item.x_username)
+      existingIds.push(item.xUserId)
+      existingUsernames.push(item.xUsername)
       return true
     })
 
     // insert into database
     for (const item of filteredJsonData) {
       // console.log('inserting', item)
+      await Database.table('XComUsers').insert(item)
       try {
-        await Database.table('x_users').insert(item)
       } catch (error) {
         console.log('error', error)
       }

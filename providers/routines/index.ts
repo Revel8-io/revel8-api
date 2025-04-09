@@ -40,42 +40,32 @@ export const populateIPFSContent = async () => {
   uploadIterator().iterate()
   const { default: Database } = await import('@ioc:Adonis/Lucid/Database')
 
-  // select all rows from Atoms and right join to atom_ipfs_data
-  // on atoms.id = atom_ipfs_data.atom_id
-  // where atoms.data is like 'ipfs://' or starts with 'Qm' and atom_ipfs_data.contents is null
-  // for each row, get the contents from the ipfs url and store it in atom_ipfs_data.contents
-  // update atom_ipfs_data with the new contents
   try {
     const rows = await Database
     .from('Atom')
-    .select('Atom.*', 'atom_ipfs_data.*', 'Atom.id as atom_table_id')
-    .fullOuterJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+    .select('Atom.*', 'AtomIpfsData.*', 'Atom.id as atomTableId')
+    .fullOuterJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atomId')
     .where((query) => {
       query
         .where('Atom.data', 'like', 'ipfs://%')
         .orWhere('Atom.data', 'like', 'Qm%')
         .orWhere('Atom.data', 'like', 'bafk%')
     })
-    .whereNull('atom_ipfs_data.contents')
+    .whereNull('AtomIpfsData.contents')
     .where(query => {
       query
-        .whereNull('atom_ipfs_data.contents')
-        .orWhere('atom_ipfs_data.contents', '{}')
+        .whereNull('AtomIpfsData.contents')
+        .orWhere('AtomIpfsData.contents', '{}')
     })
     .where(query => {
-      query.where('atom_ipfs_data.contents_attempts', '<', 5)
-      .orWhereNull('atom_ipfs_data.contents_attempts')
+      query.where('AtomIpfsData.contentsAttempts', '<', 5)
+      .orWhereNull('AtomIpfsData.contentsAttempts')
     })
     .orderBy('Atom.id', 'asc')
 
     if (rows.length > 0) {
       console.log('[CONTENTS] pending IPFS upload indexing rows.length', rows.length)
     }
-    // if (rows.length === 0) {
-    //   console.log('search results are empty, waiting 500ms')
-    //   setTimeout(populateIPFSContent, 500)
-    //   return
-    // }
 
     const fetchIPFSContent = async (row: any) => {
       let hash = ''
@@ -99,24 +89,19 @@ export const populateIPFSContent = async () => {
       try {
         data = await fetchIPFSContent(row)
       } catch (err) {
-        console.error('[CONTENTS] Error getting data from Atom.id', row.atom_table_id, err.message)
+        console.error('[CONTENTS] Error getting data from Atom.id', row.atomTableId, err.message)
         isError = true
-        // console.log('err.response.status', err.response?.status)
         if (err.response?.status === 429) {
           console.log('[CONTENTS] Rate limit exceeded, sleeping for 10 seconds')
           return await sleep(30000)
         }
       }
-      // console.log('data', data)
-      // console.log('typeof data', typeof data)
 
       const existingContentsRowForAtom = await Database.query()
-        .from('atom_ipfs_data')
-        .where('atom_id', row.atom_table_id)
-      // console.log('existingRows.length', existingRows.length)
+        .from('AtomIpfsData')
+        .where('atomId', row.atomTableId)
 
       let contents = data
-      // console.log('data', typeof data, data)
       if (typeof data !== 'object' || Array.isArray(data)) {
         contents = {}
       }
@@ -132,41 +117,32 @@ export const populateIPFSContent = async () => {
       try {
         if (existingContentsRowForAtom.length > 0) {
           await Database.query()
-            .from('atom_ipfs_data')
-            .where('atom_id', row.atom_table_id)
-            .update({ contents, contents_attempts: isError ? existingContentsRowForAtom[0].contents_attempts + 1 : 1 });
+            .from('AtomIpfsData')
+            .where('atomId', row.atomTableId)
+            .update({ contents, contentsAttempts: isError ? existingContentsRowForAtom[0].contentsAttempts + 1 : 1 });
         } else {
           await Database
             .insertQuery()
-            .table('atom_ipfs_data')
-            .insert({ atom_id: row.atom_table_id, contents });
+            .table('AtomIpfsData')
+            .insert({ atomId: row.atomTableId, contents });
         }
       } catch (err) {
-        // console.log('data type', typeof data, data)')
-        console.error('[CONTENTS] Error inserting or updating atom_ipfs_data', err, row, existingContentsRowForAtom)
+        console.error('[CONTENTS] Error inserting or updating AtomIpfsData', err, row, existingContentsRowForAtom)
       }
     }
 
-    // New concurrent processing implementation
     const concurrentLimit = 5;
-    const queue = rows.slice(); // Create a copy of the rows array
+    const queue = rows.slice();
     const activePromises = new Set();
 
     const processNext = async () => {
       console.log('[CONTENTS] processing next')
-      // if (queue.length === 0) {
-      //   console.log('queue is empty, waiting 500ms')
-      //   setTimeout(populateIPFSContent, 500)
-      //   return;
-      // }
-
       const row = queue.shift()!;
       if (!row) return
       const promise = processRow(row)
-        .catch(err => console.log('[CONTENTS] failed to process row', row.atom_table_id, err.message))
+        .catch(err => console.log('[CONTENTS] failed to process row', row.atomTableId, err.message))
         .finally(() => {
           activePromises.delete(promise);
-          // Process next item if queue is not empty
           if (queue.length > 0) {
             processNext();
           }
@@ -175,7 +151,6 @@ export const populateIPFSContent = async () => {
       activePromises.add(promise);
     };
 
-    // Initialize processing with concurrentLimit items
     for (let i = 0; i < Math.min(concurrentLimit, rows.length); i++) {
       await sleep(1000)
       processNext();
@@ -195,13 +170,13 @@ export const populateIPFSContent = async () => {
 export const populateImageFiles = async () => {
   const { default: Database } = await import('@ioc:Adonis/Lucid/Database')
 
-  // now need to read files from directory and see which are missing from atom_ipfs_data.image_hash
+  // now need to read files from directory and see which are missing from AtomIpfsData.image_hash
   try {
-    const rows = await Database.from('atom_ipfs_data')
-      .whereNull('image_filename')
+    const rows = await Database.from('AtomIpfsData')
+      .whereNull('imageFilename')
       .andWhereNot('contents', '{}')
-      .andWhere('image_attempts', '<', 5)
-      .orderBy('atom_id', 'asc')
+      .andWhere('imageAttempts', '<', 5)
+      .orderBy('atomId', 'asc')
 
     if (rows.length) {
       console.log('rows', rows.length)
@@ -215,8 +190,8 @@ export const populateImageFiles = async () => {
       const { contents } = row
       const imageUrl = contents.image
       if (!imageUrl || imageUrl === 'null') {
-        await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
-          .update({ image_attempts: 5 })
+        await Database.from('AtomIpfsData').where('atomId', row.atomId)
+          .update({ imageAttempts: 5 })
         return
       }
       // fetch the image and then save it to the public/img/atoms directory
@@ -250,20 +225,20 @@ export const populateImageFiles = async () => {
           data = response.data
         }
         const extension = getImageExtension(data)
-        const filename = `${row.atom_id}.${extension}`
+        const filename = `${row.atomId}.${extension}`
         await fs.writeFile(`public/img/atoms/${filename}`, data)
-        await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
-          .update({ image_filename: filename })
+        await Database.from('AtomIpfsData').where('atomId', row.atomId)
+          .update({ imageFilename: filename })
       } catch (err) {
-        console.error('[IMAGES] Error downloading atom image', row.atom_id, err.message)
-        await Database.from('atom_ipfs_data').where('atom_id', row.atom_id)
-          .update({ image_attempts: row.image_attempts + 1 })
+        console.error('[IMAGES] Error downloading atom image', row.atomId, err.message)
+        await Database.from('AtomIpfsData').where('atomId', row.atomId)
+          .update({ imageAttempts: row.imageAttempts + 1 })
       }
     }
 
     // New concurrent processing implementation
     const concurrentLimit = 5;
-    const queue = rows.slice(); // Create a copy of the rows array
+    const queue = rows.slice();
     const activePromises = new Set();
 
     const processNext = async () => {
@@ -275,7 +250,7 @@ export const populateImageFiles = async () => {
 
       const row = queue.shift()!;
       if (!row) return
-      console.log('[IMAGES] processing next', row.atom_id)
+      console.log('[IMAGES] processing next', row.atomId)
       const promise = processRow(row)
         .catch(err => console.error('[IMAGES] Failed to process row:', err))
         .finally(() => {
@@ -317,6 +292,7 @@ function getImageType(arrayBuffer) {
   if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) return 'webp';
   return 'unknown';
 }
+
 const getImageExtension = (arrayBuffer) => {
   const imageType = getImageType(arrayBuffer)
   switch (imageType) {

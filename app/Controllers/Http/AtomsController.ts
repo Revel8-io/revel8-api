@@ -81,8 +81,8 @@ export default class AtomsController {
         query.leftJoin('vaults as Vault', 'Atom.vaultId', 'Vault.id')
     }
     if (sortByAlphabetical) {
-        // Adjust 'atom_ipfs_data' to your actual table name if different
-        query.leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+        // Adjust 'AtomIpfsData' to your actual table name if different
+        query.leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
     }
 
     // Apply the appropriate sorting
@@ -97,7 +97,7 @@ export default class AtomsController {
       query.orderBy('Vault.positionCount', order)
     } else if (sortByAlphabetical) {
       // Sort alphabetically by name using the joined table
-      query.orderByRaw(`atom_ipfs_data.contents->>'name' ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
+      query.orderByRaw(`AtomIpfsData.contents->>'name' ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
     } else { // Default or sortByMostRecent
       // Sort by most recent (blockTimestamp on Atom model) - No join needed for this
       // Explicitly qualify with model table name if needed, but usually not required here
@@ -198,11 +198,11 @@ export default class AtomsController {
       // Use Database query builder for more complex joins and sorting
       atomsQuery = Database.query()
         .from('Atom')
-        .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
         .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
         .select(
           'Atom.*',
-          'atom_ipfs_data.*',
+          'AtomIpfsData.*',
           'Vault.totalShares',
           'Vault.currentSharePrice',
           'Vault.positionCount'
@@ -214,7 +214,7 @@ export default class AtomsController {
       }
 
       // Case-insensitive search with ILIKE
-      atomsQuery.orWhereRaw("CAST(atom_ipfs_data.contents AS TEXT) ILIKE ?", [`%${query}%`])
+      atomsQuery.orWhereRaw("CAST(AtomIpfsData.contents AS TEXT) ILIKE ?", [`%${query}%`])
 
       // Apply the appropriate custom sorting
       if (sortByVaultValue) {
@@ -225,7 +225,7 @@ export default class AtomsController {
         atomsQuery.orderBy('Vault.positionCount', order)
       } else if (sortByAlphabetical) {
         // Sort alphabetically by name
-        atomsQuery.orderByRaw(`atom_ipfs_data.contents->>'name' ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
+        atomsQuery.orderByRaw(`AtomIpfsData.contents->>'name' ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
       } else if (sortByMostRecent) {
         // Sort by most recent (blockTimestamp)
         atomsQuery.orderBy('Atom.blockTimestamp', order)
@@ -234,7 +234,7 @@ export default class AtomsController {
       // Custom pagination
       const countQuery = Database.query()
         .from('Atom')
-        .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
         .count('* as total')
 
       if (isNumeric) {
@@ -243,7 +243,7 @@ export default class AtomsController {
       }
 
       // Case-insensitive search with ILIKE
-      countQuery.orWhereRaw("CAST(atom_ipfs_data.contents AS TEXT) ILIKE ?", [`%${query}%`])
+      countQuery.orWhereRaw("CAST(AtomIpfsData.contents AS TEXT) ILIKE ?", [`%${query}%`])
 
       const countResult = await countQuery.first()
       const total = countResult ? parseInt(countResult.total as string) : 0
@@ -264,14 +264,14 @@ export default class AtomsController {
       const result = {
         meta: {
           total,
-          per_page: safeLimit,
-          current_page: page,
-          last_page: lastPage,
-          first_page: 1,
-          first_page_url: `?page=1`,
-          last_page_url: `?page=${lastPage}`,
-          next_page_url: page < lastPage ? `?page=${page + 1}` : null,
-          previous_page_url: page > 1 ? `?page=${page - 1}` : null,
+          perPage: safeLimit,
+          currentPage: page,
+          lastPage: lastPage,
+          firstPage: 1,
+          firstPageUrl: `?page=1`,
+          lastPageUrl: `?page=${lastPage}`,
+          nextPageUrl: page < lastPage ? `?page=${page + 1}` : null,
+          previousPageUrl: page > 1 ? `?page=${page - 1}` : null,
         },
         data: atoms
       }
@@ -322,12 +322,12 @@ export default class AtomsController {
       const rawAtom = await Database.query()
         .from('Atom')
         .where('Atom.id', atomId)
-        .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
         .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
         .select(
           'Atom.*',
-          'atom_ipfs_data.contents',
-          'atom_ipfs_data.image_filename',
+          'AtomIpfsData.contents',
+          'AtomIpfsData.image_filename as imageFilename',
           'Vault.totalShares',
           'Vault.currentSharePrice',
           'Vault.positionCount'
@@ -413,7 +413,7 @@ export default class AtomsController {
     const atom = await Database.query()
       .from('Atom')
       .where('Atom.id', atomId)
-      .leftJoin('atom_ipfs_data', 'Atom.id', 'atom_ipfs_data.atom_id')
+      .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
       .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
       .select(
         // Select Atom fields
@@ -430,14 +430,14 @@ export default class AtomsController {
         'Atom.blockNumber',
         'Atom.blockTimestamp',
         'Atom.transactionHash',
-        // Select atom_ipfs_data fields
-        'atom_ipfs_data.id as atomIpfsDataId',
-        'atom_ipfs_data.atom_id',
-        'atom_ipfs_data.contents',
-        'atom_ipfs_data.contents_attempts',
-        'atom_ipfs_data.image_attempts',
-        'atom_ipfs_data.image_hash',
-        'atom_ipfs_data.image_filename',
+        // Select AtomIpfsData fields
+        'AtomIpfsData.id as atomIpfsDataId',
+        'AtomIpfsData.atom_id',
+        'AtomIpfsData.contents',
+        'AtomIpfsData.contents_attempts',
+        'AtomIpfsData.image_attempts',
+        'AtomIpfsData.image_hash',
+        'AtomIpfsData.image_filename',
         // Select Vault fields
         'Vault.id as vaultId',
         'Vault.totalShares',
@@ -451,12 +451,12 @@ export default class AtomsController {
       ...atom,
       atomIpfsData: {
         id: atom.atomIpfsDataId,
-        atom_id: atom.atom_id,
+        atomId: atom.atom_id,
         contents: atom.contents,
-        contents_attempts: atom.contents_attempts,
-        image_attempts: atom.image_attempts,
-        image_hash: atom.image_hash,
-        image_filename: atom.image_filename
+        contentsAttempts: atom.contentsAttempts,
+        imageAttempts: atom.imageAttempts,
+        imageHash: atom.imageHash,
+        imageFilename: atom.imageFilename
       },
       vault: {
         id: atom.vaultId,
@@ -475,7 +475,7 @@ export default class AtomsController {
             "Triple"."subjectId", "Triple"."vaultId", "Triple"."counterVaultId",
             "Vault"."totalShares" as "vaultTotalShares", "Vault"."currentSharePrice" as "vaultCurrentSharePrice", "Vault"."atomId" as "vaultAtomId", "Vault"."tripleId" as "vaultTripleId", "Vault"."positionCount" as "vaultPositionCount",
             "counterVault"."totalShares" as "counterVaultTotalShares", "counterVault"."currentSharePrice" as "counterVaultCurrentSharePrice", "counterVault"."atomId" as "counterVaultAtomId", "counterVault"."tripleId" as "counterVaultTripleId", "counterVault"."positionCount" as "counterVaultPositionCount",
-            atom_ipfs_data.contents as "contents", atom_ipfs_data.image_filename as "image_filename"
+            AtomIpfsData.contents as "contents", AtomIpfsData.imageFilename as "imageFilename"
             FROM
                 "Triple"
             JOIN
@@ -486,9 +486,9 @@ export default class AtomsController {
               "Vault" AS "counterVault"
             ON
               "Triple"."counterVaultId" = "counterVault"."id"
-            LEFT JOIN "atom_ipfs_data"
-            ON "Triple"."subjectId" = "atom_ipfs_data"."atom_id"
-            WHERE atom_ipfs_data.contents <> '{}'
+            LEFT JOIN "AtomIpfsData"
+            ON "Triple"."subjectId" = "AtomIpfsData"."atomId"
+            WHERE AtomIpfsData.contents <> '{}'
             AND
                 "Triple"."predicateId" IN (${IS_ATOMS.map(item=> "'" + item + "'").join(',')})
                 AND "Triple"."objectId" = '${IS_RELEVANT_X_ATOM}'
@@ -507,7 +507,7 @@ export default class AtomsController {
             "Triple"."subjectId", "Triple"."vaultId", "Triple"."counterVaultId",
             "Vault"."totalShares" as "vaultTotalShares", "Vault"."currentSharePrice" as "vaultCurrentSharePrice", "Vault"."atomId" as "vaultAtomId", "Vault"."tripleId" as "vaultTripleId", "Vault"."positionCount" as "vaultPositionCount",
             "counterVault"."totalShares" as "counterVaultTotalShares", "counterVault"."currentSharePrice" as "counterVaultCurrentSharePrice", "counterVault"."atomId" as "counterVaultAtomId", "counterVault"."tripleId" as "counterVaultTripleId", "counterVault"."positionCount" as "counterVaultPositionCount",
-            atom_ipfs_data.contents as "contents"
+            AtomIpfsData.contents as "contents"
             FROM
                 "Triple"
             JOIN
@@ -518,9 +518,9 @@ export default class AtomsController {
               "Vault" AS "counterVault"
             ON
               "Triple"."counterVaultId" = "counterVault"."id"
-            LEFT JOIN "atom_ipfs_data"
-            ON "Triple"."subjectId" = "atom_ipfs_data"."atom_id"
-            WHERE atom_ipfs_data.contents <> '{}'
+            LEFT JOIN "AtomIpfsData"
+            ON "Triple"."subjectId" = "AtomIpfsData"."atomId"
+            WHERE AtomIpfsData.contents <> '{}'
             AND
                 "Triple"."predicateId" IN (${IS_ATOMS.map(item=> "'" + item + "'").join(',')})
                 AND "Triple"."objectId" = '${IS_RELEVANT_X_ATOM}'
@@ -535,15 +535,21 @@ export default class AtomsController {
 
   public async getXUserAtom({ request, response }: HttpContextContract) {
     const { username } = request.all()
-    // get atom_ipfs_data where contents.xUsername = username
+    // get AtomIpfsData where contents.xUsername = username
     // then join Atom table on atom_id
     const rows = await Database.query()
-      .from('atom_ipfs_data')
+      .from('AtomIpfsData')
       .whereRaw('contents @> ?::jsonb', [JSON.stringify({ xUsername: username })])
-      .join('Atom', 'atom_ipfs_data.atom_id', 'Atom.id')
+      .join('Atom', 'AtomIpfsData.atomId', 'Atom.id')
       .join('Vault', 'Vault.id', 'Atom.vaultId')
       .select(
-        'atom_ipfs_data.*',
+        'AtomIpfsData.id',
+        'AtomIpfsData.atomId',
+        'AtomIpfsData.contents',
+        'AtomIpfsData.contentsAttempts',
+        'AtomIpfsData.imageAttempts',
+        'AtomIpfsData.imageHash',
+        'AtomIpfsData.imageFilename',
         'Vault.totalShares',
         'Vault.currentSharePrice',
         'Vault.positionCount',
@@ -558,7 +564,7 @@ export default class AtomsController {
   }
 
   public async generateJSONData({ response }: HttpContextContract) {
-    const { rows } = await Database.rawQuery(`SELECT * FROM "atom_ipfs_data"`)
+    const { rows } = await Database.rawQuery(`SELECT * FROM "AtomIpfsData"`)
     // write to file
     await fs.writeFile('atomIpfsData.json', JSON.stringify(rows, null, 2))
     return response.status(200)
@@ -577,6 +583,6 @@ const actualOrderByMapping = {
     '("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC / POWER(10, 18))',
 
   // alphabetical
-  'atom_ipfs_data.contents->>name': "atom_ipfs_data.contents->>'name'"
+  'AtomIpfsData.contents->>name': "AtomIpfsData.contents->>'name'"
 }
 

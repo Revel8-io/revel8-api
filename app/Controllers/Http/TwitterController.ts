@@ -36,7 +36,7 @@ export default class Twitter {
   public async getXUser({ request, response }: HttpContextContract) {
     const { xUsername } = request.qs()
     const xUser = await Database.from('x_users')
-      .where('x_username', xUsername)
+      .where('xUsername', xUsername)
       .first()
     console.log('xUser from db', xUser?.username)
     if (!xUser) {
@@ -74,19 +74,19 @@ export default class Twitter {
         })
       }
       const formattedXUser = {
-        x_user_id: xUserFromX.id,
-        x_username: xUserFromX.username,
-        x_name: xUserFromX.name,
-        x_user_created_at: xUserFromX.created_at,
-        x_profile_image_url: xUserFromX.profile_image_url,
-        x_description: xUserFromX.description
+        xUserId: xUserFromX.id,
+        xUsername: xUserFromX.username,
+        xName: xUserFromX.name,
+        xUserCreatedAt: xUserFromX.createdAt,
+        xProfileImageUrl: xUserFromX.profileImageUrl,
+        xDescription: xUserFromX.description
       }
       await Database.table('x_users').insert(formattedXUser)
       response.json(formattedXUser)
       // append to xUsers.json
       const xUsers = JSON.parse(fs.readFileSync('xUsers.json', 'utf8'))
-      // check if existing entry with either x_user_id or x_username
-      const existingUser = xUsers.find((user: any) => user.x_user_id === formattedXUser.x_user_id || user.x_username === formattedXUser.x_username)
+      // check if existing entry with either xUserId or xUsername
+      const existingUser = xUsers.find((user: any) => user.xUserId === formattedXUser.xUserId || user.xUsername === formattedXUser.xUsername)
       if (!existingUser) {
         xUsers.push(formattedXUser)
         fs.writeFileSync('xUsers.json', JSON.stringify(xUsers, null, 2))
