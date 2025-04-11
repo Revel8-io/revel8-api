@@ -1,6 +1,3 @@
-[submodule "revel8-common"]
-	path = revel8-common
-	url = git@github.com:Revel8-io/revel8-common.git
 [submodule "common"]
 	path = common
 	url = git@github.com:Revel8-io/revel8-common.git
