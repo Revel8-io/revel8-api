@@ -67,3 +67,7 @@ Route.get('exchange-rates', 'MiscController.getExchangeRates')
 Route.get('triples/atom/:atomId', 'TriplesController.getTriplesByAtomId')
 Route.get('triples/rankings/:atoms', 'TriplesController.getTriplesRankingsWithContents')
 Route.resource('triples', 'TriplesController').apiOnly()
+
+// positions
+Route.get('positions/vault/:vaultId', 'PositionsController.getPositionsByVaultId')
+Route.resource('positions', 'PositionsController').apiOnly()

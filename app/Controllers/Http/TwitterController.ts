@@ -35,7 +35,7 @@ export default class Twitter {
   // todo: add caching (1 day or 1 month?)
   public async getXUser({ request, response }: HttpContextContract) {
     const { xUsername } = request.qs()
-    const xUser = await Database.from('x_users')
+    const xUser = await Database.from('xUsers')
       .where('xUsername', xUsername)
       .first()
     console.log('xUser from db', xUser?.username)
@@ -81,7 +81,7 @@ export default class Twitter {
         xProfileImageUrl: xUserFromX.profileImageUrl,
         xDescription: xUserFromX.description
       }
-      await Database.table('x_users').insert(formattedXUser)
+      await Database.table('xUsers').insert(formattedXUser)
       response.json(formattedXUser)
       // append to xUsers.json
       const xUsers = JSON.parse(fs.readFileSync('xUsers.json', 'utf8'))
