@@ -63,6 +63,7 @@ Route.get('atoms/search/:query', 'AtomsController.searchAtomsWithContentsVaults'
 
 // exchange rates
 Route.get('exchange-rates', 'MiscController.getExchangeRates')
+Route.get('contract-config', 'MiscController.getContractConfig')
 
 Route.get('triples/atom/:atomId', 'TriplesController.getTriplesByAtomId')
 Route.get('triples/rankings/:atoms', 'TriplesController.getTriplesRankingsWithContents')
