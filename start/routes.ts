@@ -72,3 +72,7 @@ Route.resource('triples', 'TriplesController').apiOnly()
 // positions
 Route.get('positions/vault/:vaultId', 'PositionsController.getPositionsByVaultId')
 Route.resource('positions', 'PositionsController').apiOnly()
+
+// Signals
+Route.get('signals/triple/:tripleId', 'SignalsController.getSignalsByVaultId')
+Route.resource('signals', 'SignalsController.index').apiOnly()
