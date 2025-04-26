@@ -1,5 +1,6 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
+import Redis from '@ioc:Adonis/Addons/Redis'
 import fs from 'fs/promises'
 
 import { CONFIG } from '../../../util/'
@@ -537,9 +538,22 @@ export default class AtomsController {
   // should probably
   public async getXUserAtom({ request, response }: HttpContextContract) {
     const { username } = request.all()
+    if (!username) {
+      return response.badRequest({ message: 'Missing username parameter.' })
+    }
+    const xComUserSerialized = await Redis.get(`xComUser:${username}`)
+    let xComUser = xComUserSerialized ? JSON.parse(xComUserSerialized) : null
+    if (!xComUser) {
+      const xComUserIterator = await Redis.get('xComUserIterator')
+      console.warn('_______xComUserIterator______', xComUserIterator)
+      await Redis.set('xComUserIterator', xComUserIterator ? parseInt(xComUserIterator) + 1 : 1)
+      const response = await xApiAuth.get(`/users/by/username/${username}`)
+      xComUser = response.data
+      await Redis.set(`xComUser:${username}`, JSON.stringify(xComUser), 'EX', 60 * 60 * 24 * 7)
+
+    }
     // get AtomIpfsData where contents.xUsername = username
-    const { data: xComUser } = await xApiAuth.get(`/users/by/username/${username}`)
-    console.log('xComUser', xComUser)
+    console.log('xComUser', xComUser.data.username)
     // then join Atom table on atomId
     const rows = await Database.query()
       .from('AtomIpfsData')
