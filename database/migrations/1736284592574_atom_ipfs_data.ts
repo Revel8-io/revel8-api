@@ -1,22 +1,24 @@
 import BaseSchema from '@ioc:Adonis/Lucid/Schema'
 
 export default class extends BaseSchema {
-  protected tableName = 'atom_ipfs_data'
+  protected tableName = 'AtomIpfsData'
 
   public async up () {
     this.schema.createTable(this.tableName, (table) => {
-      table.increments('id')
-      table.integer('atom_id').unsigned()
+      table.increments('id').primary()
+      table.bigInteger('atomId').unsigned().unique()
       table.jsonb('contents')
-
-      table.foreign('atom_id').references('Atom.id')
-
+      table.integer('contentsAttempts').defaultTo(1)
+      table.integer('imageAttempts').defaultTo(1)
+      table.string('imageHash').nullable()
+      table.string('imageFilename').nullable()
+      table.foreign('atomId').references('Atom.id')
 
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
        */
-      table.timestamp('created_at', { useTz: true })
-      table.timestamp('updated_at', { useTz: true })
+      table.timestamp('createdAt', { useTz: true })
+      table.timestamp('updatedAt', { useTz: true })
     })
   }
 

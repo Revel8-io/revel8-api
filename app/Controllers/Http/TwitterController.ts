@@ -4,6 +4,9 @@ import Redis from '@ioc:Adonis/Addons/Redis'
 import crypto from 'node:crypto'
 import axios from 'axios'
 import { AccessTokenResponse, UserDataResponse } from 'types'
+import Database from '@ioc:Adonis/Lucid/Database'
+import fs from 'fs'
+console.log('Twitter bearer token', Env.get('TWITTER_BEARER_TOKEN'))
 
 const LoginWithTwitter = require('login-with-twitter')
 
@@ -20,7 +23,81 @@ const tw = new LoginWithTwitter({
   callbackUrl: Env.get('TWITTER_CALLBACK_URL')
 })
 
+export const xApiAuth = axios.create({
+  baseURL: 'https://api.x.com/2',
+  headers: {
+    'Authorization': `Bearer ${Env.get('TWITTER_BEARER_TOKEN')}`
+  }
+})
+
 export default class Twitter {
+
+  // todo: add caching (1 day or 1 month?)
+  public async getXUser({ request, response }: HttpContextContract) {
+    const { xUsername } = request.qs()
+    const xUser = await Database.from('XComUsers')
+      .where('username', xUsername)
+      .first()
+    console.log('xUser from db', xUser?.username)
+    if (!xUser) {
+      // should we query for when account was created?
+      // query with user fields created_at, description, id, name, profile_banner_url, profile_image_url, url, username
+      let xUserFromX
+      try {
+        const {
+          data: {
+            data
+          }
+        } = await xApiAuth(`/users/by/username/${xUsername}`, {
+          params: {
+            'user.fields': 'created_at,description,id,name,profile_banner_url,profile_image_url,url,username'
+          }
+        })
+        xUserFromX = data
+        const getUserCount = await Redis.get('getUserInstances')
+        console.log('getUserCount', getUserCount)
+        if (getUserCount) {
+          await Redis.set('getUserInstances', (parseInt(getUserCount) + 1).toString(), 'KEEPTTL')
+        } else {
+          await Redis.set('getUserInstances', '1', 'EX', 60 * 60 * 24)
+        }
+      } catch (err) {
+        console.error('Twitter::getXUser error', err)
+        return response.status(404).json({
+          error: 'X user not found'
+        })
+      }
+      console.log('xUserFromX', xUserFromX?.username)
+      if (!xUserFromX) {
+        return response.status(404).json({
+          error: 'X user not found'
+        })
+      }
+      const formattedXUser = {
+        userId: xUserFromX.id,
+        username: xUserFromX.username,
+        name: xUserFromX.name,
+        createdAt: xUserFromX.createdAt,
+        profileImageUrl: xUserFromX.profileImageUrl,
+        description: xUserFromX.description
+      }
+      console.log('formattedXUser', formattedXUser)
+      await Database.table('XComUsers').insert(formattedXUser)
+      response.json(formattedXUser)
+      // append to xUsers.json
+      const xUsers = JSON.parse(fs.readFileSync('xUsers.json', 'utf8'))
+      // check if existing entry with either xUserId or xUsername
+      const existingUser = xUsers.find((user: any) => user.userId === formattedXUser.userId || user.xUsername === formattedXUser.xUsername)
+      if (!existingUser) {
+        xUsers.push(formattedXUser)
+        fs.writeFileSync('xUsers.json', JSON.stringify(xUsers, null, 2))
+      }
+      return
+    }
+    return response.json(xUser)
+  }
+
+
   public async getRequestToken({ request, response }: HttpContextContract) {
     // get rand query param
     const { rand } = request.qs()
@@ -204,3 +281,4 @@ async function generateRandomString(length: number): Promise<string> {
 
   return text;
 }
+

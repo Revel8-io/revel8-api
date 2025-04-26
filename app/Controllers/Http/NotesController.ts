@@ -1,5 +1,6 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { schema } from '@ioc:Adonis/Core/Validator'
+import fs from 'fs/promises'
 import Note from 'App/Models/Note'
 
 export default class NotesController {
@@ -65,8 +66,16 @@ export default class NotesController {
     })
     await request.validate({ schema: getAuthorTargetNotesSchema })
     const result = await this.retrieveAuthorTargetNotes(author, target)
-    console.log('result', result)
-    return response.json(result)
+    response.json(result)
+    // read from '../../authorTargetNotes.json' then add key target to the object
+    // then save the file
+    // console.log('about to read')
+    // const file = await fs.readFile('authorTargetNotes.json', 'utf8')
+    // const data = JSON.parse(file)
+    // data[target] = null
+    // console.log('about to rewrite')
+    // await fs.writeFile('authorTargetNotes.json', JSON.stringify(data, null, 2))
+    return
   }
 
   public async show({ request, response }: HttpContextContract) {

@@ -1,5 +1,7 @@
 import type { ApplicationContract } from '@ioc:Adonis/Core/Application'
-import { populateIPFSContent, testPinataAuth } from './routines'
+import { populateIPFSContent, populateImageFiles } from './routines'
+import { getContractConfig } from './routines/multivault'
+import axios from 'axios'
 
 export default class AppProvider {
   constructor(protected app: ApplicationContract) {}
@@ -17,8 +19,13 @@ export default class AppProvider {
 		await import('@ioc:Adonis/Lucid/Database')
 		await import('@ioc:Adonis/Addons/Redis')
 		await import('@ioc:Adonis/Core/Env')
-    testPinataAuth()
-    // populateIPFSContent()
+    // testPinataAuth()
+    populateIPFSContent()
+    populateImageFiles()
+    getContractConfig()
+    setInterval(() => {
+      axios.get('http://localhost:3333/generate-json-data')
+    }, 1000 * 60 * 10)
   }
 
   public async shutdown() {

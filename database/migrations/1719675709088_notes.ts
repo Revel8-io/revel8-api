@@ -9,15 +9,15 @@ export default class extends BaseSchema {
       table.string('author')
       table.string('target')
       table.string('note')
-      table.string('target_id')
-      table.string('related_tweet_url')
-      table.string('related_tweet_id')
+      table.string('targetId')
+      table.string('relatedTweetUrl')
+      table.string('relatedTweetId')
 
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
        */
-      table.timestamp('created_at', { useTz: true })
-      table.timestamp('updated_at', { useTz: true })
+      table.timestamp('createdAt', { useTz: true })
+      table.timestamp('updatedAt', { useTz: true })
     })
   }
 

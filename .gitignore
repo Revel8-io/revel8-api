@@ -18,3 +18,10 @@ logs
 .yarn/install-state.gz
 .pnp.*
 .yarn-integrity
+public/img
+screenshots
+atomIpfsData.json
+atoms.json
+authorTargetNotes.json
+triples.json
+xUsers.json

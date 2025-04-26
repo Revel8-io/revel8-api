@@ -1,7 +1,8 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import { column } from '@ioc:Adonis/Lucid/Orm'
+import AppBaseModel from './AppBaseModel'
 
-export default class Note extends BaseModel {
+export default class Note extends AppBaseModel {
   @column({ isPrimary: true })
   public id: number
 

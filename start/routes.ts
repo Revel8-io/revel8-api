@@ -41,6 +41,39 @@ Route.get('twitter/access-token', 'TwitterController.exchangeAuthCodeForAccessTo
 
 // oauth2
 Route.get('twitter/request-oauth2-url', 'TwitterController.getRequestTokenOauth2')
+Route.get('twitter/get-user', 'TwitterController.getXUser')
 
 // pinata
 Route.post('ipfs/upload', 'IpfsController.create')
+Route.post('ipfs/upload-image', 'IpfsController.uploadImage')
+Route.get('ipfs/upload-iterator', 'IpfsController.getIterator')
+Route.post('ipfs/image-by-url', 'IpfsController.createImageByUrl')
+Route.post('ipfs/upload-json', 'IpfsController.uploadJson')
+
+// atoms
+Route.get('atoms/search', 'AtomsController.searchAtomsWithContentsVaults')
+Route.get('atoms/most-relevant-x', 'AtomsController.getMostRelevantXAtoms')
+Route.get('x/user-atoms', 'AtomsController.getXUserAtom')
+Route.get('generate-json-data', 'AtomsController.generateJSONData')
+Route.get('search-atoms', 'SearchAtomsController.index')
+Route.get('search-atoms/fuzzy', 'SearchAtomsController.fuzzySearchAtomContents')
+Route.get('atoms/multiple/:ids', 'AtomsController.showMultiple')
+Route.resource('atoms', 'AtomsController').apiOnly()
+Route.get('atoms-with-contents/:atomIds', 'AtomsController.showWithContents')
+Route.get('atoms/:atomId/all', 'AtomsController.getAtomContentsWithVaults')
+
+// exchange rates
+Route.get('exchange-rates', 'MiscController.getExchangeRates')
+Route.get('contract-config', 'MiscController.getContractConfig')
+
+Route.get('triples/atom/:atomId', 'TriplesController.getTriplesByAtomId')
+Route.get('triples/rankings/:atoms', 'TriplesController.getTriplesRankingsWithContents')
+Route.resource('triples', 'TriplesController').apiOnly()
+
+// positions
+Route.get('positions/vault/:vaultId', 'PositionsController.getPositionsByVaultId')
+Route.resource('positions', 'PositionsController').apiOnly()
+
+// Signals
+Route.get('signals/triple/:tripleId', 'SignalsController.getSignalsByVaultId')
+Route.resource('signals', 'SignalsController.index').apiOnly()
