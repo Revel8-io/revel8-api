@@ -543,14 +543,18 @@ export default class AtomsController {
     }
     const xComUserSerialized = await Redis.get(`xComUser:${username}`)
     let xComUser = xComUserSerialized ? JSON.parse(xComUserSerialized) : null
+    const xComExistingUserIterator = await Redis.get('xComExistingUserIterator')
     if (!xComUser) {
       const xComUserIterator = await Redis.get('xComUserIterator')
-      console.warn('_______xComUserIterator______', xComUserIterator)
+      setTimeout(() => {
+        console.warn('_______xComUserIterators_______', xComUserIterator, xComExistingUserIterator)
+      }, 2000)
       await Redis.set('xComUserIterator', xComUserIterator ? parseInt(xComUserIterator) + 1 : 1)
       const response = await xApiAuth.get(`/users/by/username/${username}`)
       xComUser = response.data
       await Redis.set(`xComUser:${username}`, JSON.stringify(xComUser), 'EX', 60 * 60 * 24 * 7)
-
+    } else {
+      await Redis.set('xComExistingUserIterator', xComExistingUserIterator ? parseInt(xComExistingUserIterator) + 1 : 1)
     }
     // get AtomIpfsData where contents.xUsername = username
     console.log('xComUser', xComUser.data.username)
