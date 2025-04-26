@@ -1,6 +1,7 @@
 import type { ApplicationContract } from '@ioc:Adonis/Core/Application'
 import { populateIPFSContent, populateImageFiles } from './routines'
 import { getContractConfig } from './routines/multivault'
+import axios from 'axios'
 
 export default class AppProvider {
   constructor(protected app: ApplicationContract) {}
@@ -22,6 +23,9 @@ export default class AppProvider {
     populateIPFSContent()
     populateImageFiles()
     getContractConfig()
+    setInterval(() => {
+      axios.get('http://localhost:3333/generate-json-data')
+    }, 1000 * 60 * 10)
   }
 
   public async shutdown() {

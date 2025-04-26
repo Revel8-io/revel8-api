@@ -1,5 +1,6 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Signal from 'App/Models/Signal'
+
 export default class SignalsController {
   public async getSignalsByVaultId({ params, request }: HttpContextContract) {
     // get orderBy query string

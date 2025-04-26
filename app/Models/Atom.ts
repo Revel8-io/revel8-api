@@ -51,4 +51,9 @@ export default class Atom extends AppBaseModel {
 
   @column({ columnName: 'transactionHash' })
   public transactionHash: Buffer
+
+  // Convert to hexadecimal string (most common for transaction hashes)
+  public get transactionHashString(): string {
+    return this.transactionHash.toString('hex')
+  }
 }

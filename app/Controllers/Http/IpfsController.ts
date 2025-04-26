@@ -126,7 +126,7 @@ export default class IpfsController {
   }
 
   public async uploadJson({request, response}: HttpContextContract) {
-    const { data: { jsonList } }: { data: { jsonList: object[] }} = request.all()
+    const { jsonList} = request.all()
     if (!jsonList || jsonList.length === 0) {
       return response.status(400).json({ error: 'No JSON data provided' })
     }

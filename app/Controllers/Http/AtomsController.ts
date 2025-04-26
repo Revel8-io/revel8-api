@@ -4,6 +4,7 @@ import fs from 'fs/promises'
 
 import { CONFIG } from '../../../util/'
 import Atom from 'App/Models/Atom'
+import { xApiAuth } from './TwitterController'
 
 const { IS_ATOMS, IS_RELEVANT_X_ATOM } = CONFIG
 
@@ -78,11 +79,11 @@ export default class AtomsController {
     if (sortByVaultValue || sortByPositionCount) {
         // Use 'vaults' as alias if your table name is 'vaults' and relation is 'vault'
         // Adjust 'vaults' to your actual Vault table name if different
-        query.leftJoin('vaults as Vault', 'Atom.vaultId', 'Vault.id')
+        query.leftJoin('Vault as Vault', 'Atom.vaultId', 'Vault.id')
     }
     if (sortByAlphabetical) {
         // Adjust 'AtomIpfsData' to your actual table name if different
-        query.leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
+        query.leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atomId')
     }
 
     // Apply the appropriate sorting
@@ -117,7 +118,7 @@ export default class AtomsController {
   }
 
   public async searchAtomsWithContentsVaults({ params, request, response }: HttpContextContract) {
-    const { query } = params
+    const { q } = request.qs()
 
     // Parse pagination and sorting parameters with safe defaults
     let page = 1;
@@ -188,7 +189,7 @@ export default class AtomsController {
     }
 
     // Check if query is a number (potential atom ID)
-    const isNumeric = !isNaN(Number(query)) && !isNaN(parseFloat(query))
+    const isNumeric = !isNaN(Number(q)) && !isNaN(parseFloat(q))
 
     // Build base query
     let atomsQuery
@@ -198,7 +199,7 @@ export default class AtomsController {
       // Use Database query builder for more complex joins and sorting
       atomsQuery = Database.query()
         .from('Atom')
-        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
+        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atomId')
         .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
         .select(
           'Atom.*',
@@ -209,12 +210,12 @@ export default class AtomsController {
         )
 
       if (isNumeric) {
-        const atomId = parseInt(query)
+        const atomId = parseInt(q)
         atomsQuery.where('Atom.id', atomId)
       }
 
       // Case-insensitive search with ILIKE
-      atomsQuery.orWhereRaw("CAST(AtomIpfsData.contents AS TEXT) ILIKE ?", [`%${query}%`])
+      atomsQuery.orWhereRaw("CAST(\"AtomIpfsData\".contents AS TEXT) ILIKE ?", [`%${q}%`])
 
       // Apply the appropriate custom sorting
       if (sortByVaultValue) {
@@ -234,16 +235,16 @@ export default class AtomsController {
       // Custom pagination
       const countQuery = Database.query()
         .from('Atom')
-        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
+        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atomId')
         .count('* as total')
 
       if (isNumeric) {
-        const atomId = parseInt(query)
+        const atomId = parseInt(q)
         countQuery.where('Atom.id', atomId)
       }
 
       // Case-insensitive search with ILIKE
-      countQuery.orWhereRaw("CAST(AtomIpfsData.contents AS TEXT) ILIKE ?", [`%${query}%`])
+      countQuery.orWhereRaw("CAST(\"AtomIpfsData\".contents AS TEXT) ILIKE ?", [`%${q}%`])
 
       const countResult = await countQuery.first()
       const total = countResult ? parseInt(countResult.total as string) : 0
@@ -285,7 +286,7 @@ export default class AtomsController {
 
       if (isNumeric) {
         // Search for atom with exact ID match
-        const atomId = parseInt(query)
+        const atomId = parseInt(q)
         atomsQuery.where('id', atomId)
       }
 
@@ -293,7 +294,7 @@ export default class AtomsController {
       // Using ILIKE for case-insensitive matching
       atomsQuery
         .orWhereHas('atomIpfsData', (builder) => {
-          builder.whereRaw("CAST(contents AS TEXT) ILIKE ?", [`%${query}%`])
+          builder.whereRaw("CAST(\"AtomIpfsData\".contents AS TEXT) ILIKE ?", [`%${q}%`])
         })
 
       // Apply standard ordering
@@ -322,12 +323,12 @@ export default class AtomsController {
       const rawAtom = await Database.query()
         .from('Atom')
         .where('Atom.id', atomId)
-        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
+        .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atomId')
         .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
         .select(
           'Atom.*',
           'AtomIpfsData.contents',
-          'AtomIpfsData.image_filename as imageFilename',
+          'AtomIpfsData.imageFilename as imageFilename',
           'Vault.totalShares',
           'Vault.currentSharePrice',
           'Vault.positionCount'
@@ -401,7 +402,7 @@ export default class AtomsController {
         .preload('atomIpfsData')
         .preload('vault')
         .first()
-
+      console.log('atom', atom)
       if (atom) {
         return response.json(atom)
       }
@@ -413,7 +414,7 @@ export default class AtomsController {
     const atom = await Database.query()
       .from('Atom')
       .where('Atom.id', atomId)
-      .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atom_id')
+      .leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atomId')
       .leftJoin('Vault', 'Vault.id', 'Atom.vaultId')
       .select(
         // Select Atom fields
@@ -432,12 +433,12 @@ export default class AtomsController {
         'Atom.transactionHash',
         // Select AtomIpfsData fields
         'AtomIpfsData.id as atomIpfsDataId',
-        'AtomIpfsData.atom_id',
+        'AtomIpfsData.atomId',
         'AtomIpfsData.contents',
-        'AtomIpfsData.contents_attempts',
-        'AtomIpfsData.image_attempts',
-        'AtomIpfsData.image_hash',
-        'AtomIpfsData.image_filename',
+        'AtomIpfsData.contentsAttempts',
+        'AtomIpfsData.imageAttempts',
+        'AtomIpfsData.imageHash',
+        'AtomIpfsData.imageFilename',
         // Select Vault fields
         'Vault.id as vaultId',
         'Vault.totalShares',
@@ -451,7 +452,7 @@ export default class AtomsController {
       ...atom,
       atomIpfsData: {
         id: atom.atomIpfsDataId,
-        atomId: atom.atom_id,
+        atomId: atom.atomId,
         contents: atom.contents,
         contentsAttempts: atom.contentsAttempts,
         imageAttempts: atom.imageAttempts,
@@ -533,13 +534,16 @@ export default class AtomsController {
     return response.json(rows)
   }
 
+  // should probably
   public async getXUserAtom({ request, response }: HttpContextContract) {
     const { username } = request.all()
     // get AtomIpfsData where contents.xUsername = username
-    // then join Atom table on atom_id
+    const { data: xComUser } = await xApiAuth.get(`/users/by/username/${username}`)
+    console.log('xComUser', xComUser)
+    // then join Atom table on atomId
     const rows = await Database.query()
       .from('AtomIpfsData')
-      .whereRaw('contents @> ?::jsonb', [JSON.stringify({ xUsername: username })])
+      .whereRaw('contents @> ?::jsonb', [JSON.stringify({ name: username, xComUserId: xComUser.data.id })])
       .join('Atom', 'AtomIpfsData.atomId', 'Atom.id')
       .join('Vault', 'Vault.id', 'Atom.vaultId')
       .select(

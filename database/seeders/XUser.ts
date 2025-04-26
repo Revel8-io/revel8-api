@@ -12,13 +12,13 @@ export default class extends BaseSeeder {
     // remove array objects with duplicate id value
     const filteredJsonData = jsonData.filter((item: any) => {
       if (
-        existingIds.includes(item.xUserId) ||
-        existingUsernames.includes(item.xUsername)
+        existingIds.includes(item.userId) ||
+        existingUsernames.includes(item.username)
       ) {
         return false
       }
-      existingIds.push(item.xUserId)
-      existingUsernames.push(item.xUsername)
+      existingIds.push(item.userId)
+      existingUsernames.push(item.username)
       return true
     })
 

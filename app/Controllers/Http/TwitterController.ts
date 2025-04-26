@@ -23,7 +23,7 @@ const tw = new LoginWithTwitter({
   callbackUrl: Env.get('TWITTER_CALLBACK_URL')
 })
 
-const xApiAuth = axios.create({
+export const xApiAuth = axios.create({
   baseURL: 'https://api.x.com/2',
   headers: {
     'Authorization': `Bearer ${Env.get('TWITTER_BEARER_TOKEN')}`
@@ -35,8 +35,8 @@ export default class Twitter {
   // todo: add caching (1 day or 1 month?)
   public async getXUser({ request, response }: HttpContextContract) {
     const { xUsername } = request.qs()
-    const xUser = await Database.from('xUsers')
-      .where('xUsername', xUsername)
+    const xUser = await Database.from('XComUsers')
+      .where('username', xUsername)
       .first()
     console.log('xUser from db', xUser?.username)
     if (!xUser) {
@@ -74,19 +74,20 @@ export default class Twitter {
         })
       }
       const formattedXUser = {
-        xUserId: xUserFromX.id,
-        xUsername: xUserFromX.username,
-        xName: xUserFromX.name,
-        xUserCreatedAt: xUserFromX.createdAt,
-        xProfileImageUrl: xUserFromX.profileImageUrl,
-        xDescription: xUserFromX.description
+        userId: xUserFromX.id,
+        username: xUserFromX.username,
+        name: xUserFromX.name,
+        createdAt: xUserFromX.createdAt,
+        profileImageUrl: xUserFromX.profileImageUrl,
+        description: xUserFromX.description
       }
-      await Database.table('xUsers').insert(formattedXUser)
+      console.log('formattedXUser', formattedXUser)
+      await Database.table('XComUsers').insert(formattedXUser)
       response.json(formattedXUser)
       // append to xUsers.json
       const xUsers = JSON.parse(fs.readFileSync('xUsers.json', 'utf8'))
       // check if existing entry with either xUserId or xUsername
-      const existingUser = xUsers.find((user: any) => user.xUserId === formattedXUser.xUserId || user.xUsername === formattedXUser.xUsername)
+      const existingUser = xUsers.find((user: any) => user.userId === formattedXUser.userId || user.xUsername === formattedXUser.xUsername)
       if (!existingUser) {
         xUsers.push(formattedXUser)
         fs.writeFileSync('xUsers.json', JSON.stringify(xUsers, null, 2))

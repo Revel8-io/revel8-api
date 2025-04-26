@@ -272,12 +272,12 @@ export interface User {
 
 export interface XUser {
   id: number; // integer
-  xUserId: string | null; // character varying
-  xUsername: string | null; // character varying
-  xName: string | null; // character varying
-  xProfileImageUrl: string | null; // character varying
-  xDescription: string | null; // character varying
-  xUserCreatedAt: string | null; // character varying
+  userId: string | null; // character varying
+  username: string | null; // character varying
+  name: string | null; // character varying
+  profileImageUrl: string | null; // character varying
+  description: string | null; // character varying
+  userCreatedAt: string | null; // character varying
   createdAt: Date | null; // timestamp with time zone
   updatedAt: Date | null; // timestamp with time zone
 }

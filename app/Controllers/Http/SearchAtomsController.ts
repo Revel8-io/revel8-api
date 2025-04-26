@@ -177,6 +177,31 @@ export default class SearchAtomsController {
       return response.json(atoms)
     }
   }
+
+  public async fuzzySearchAtomContents({ request, response }: HttpContextContract) {
+    const { q, limit = 20, page = 1 } = request.qs()
+    const atoms = await Atom.query()
+      .preload('atomIpfsData')
+      .whereHas('atomIpfsData', (query) => {
+        if (q) {
+          query.whereRaw("contents::text ILIKE ?", [`%${q}%`])
+        }
+      })
+      .preload('vault')
+      .orderBy('blockTimestamp', 'desc')
+      .paginate(page, limit)
+    const output = atoms.serialize()
+    const atomsWithAccuracy = output.data.map((atom) => {
+      const queryStringLength = q.length
+      const atomContentsLength = atom.atomIpfsData?.contents?.name?.length || 0
+      const accuracy = atomContentsLength ? (queryStringLength / atomContentsLength) : 0
+      return {
+        ...atom,
+        accuracy
+      }
+    }).sort((a, b) => b.accuracy - a.accuracy)
+    return response.json(atomsWithAccuracy)
+  }
 }
 
 // Mapping for translating frontend orderBy fields to database fields
