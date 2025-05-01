@@ -166,12 +166,13 @@ export const populateIPFSContent = async () => {
     setTimeout(populateIPFSContent, 1000)
   }
 }
-
+let imageIterator = 0
 export const populateImageFiles = async () => {
   const { default: Database } = await import('@ioc:Adonis/Lucid/Database')
 
   // now need to read files from directory and see which are missing from AtomIpfsData.image_hash
   try {
+    imageIterator++
     const rows = await Database.from('AtomIpfsData')
       .whereNull('imageFilename')
       .andWhereNot('contents', '{}')
@@ -183,8 +184,9 @@ export const populateImageFiles = async () => {
       console.log('[IMAGES] images needing downloading', rows.length)
     }
     const files = await fs.readdir('public/img/atoms')
-    console.log('1[IMAGES] image files.length', files.length)
-    console.log('2 files', files.length)
+    if (imageIterator % 60 === 0) {
+      console.log('1[IMAGES] image files.length', files.length)
+    }
 
     const processRow = async (row: any) => {
       const { contents } = row
