@@ -38,6 +38,7 @@ Route.get('twitter/callback', 'TwitterController.twitterCallback')
 Route.get('twitter/validated', 'TwitterController.userValidationCheck')
 Route.get('twitter/oauth-url', 'TwitterController.getOauthUrl')
 Route.get('twitter/access-token', 'TwitterController.exchangeAuthCodeForAccessToken')
+Route.get('twitter/top-user-atoms', 'TwitterController.getTopUserAtoms')
 
 // oauth2
 Route.get('twitter/request-oauth2-url', 'TwitterController.getRequestTokenOauth2')

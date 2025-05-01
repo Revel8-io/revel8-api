@@ -6,6 +6,12 @@ import axios from 'axios'
 import { AccessTokenResponse, UserDataResponse } from 'types'
 import Database from '@ioc:Adonis/Lucid/Database'
 import fs from 'fs'
+import Triple from 'App/Models/Triple'
+import { CONFIG } from '../../../common/constants/web3'
+import Atom from 'App/Models/Atom'
+
+const { OWNS_X_COM_ACCOUNT_ATOM_ID } = CONFIG
+
 console.log('Twitter bearer token', Env.get('TWITTER_BEARER_TOKEN'))
 
 const LoginWithTwitter = require('login-with-twitter')
@@ -95,6 +101,49 @@ export default class Twitter {
       return
     }
     return response.json(xUser)
+  }
+
+  public async getTopUserAtoms({ request, response }: HttpContextContract) {
+    const { username, limit = 10 } = request.qs()
+
+    // will also need to consider counterVault data
+    const triples = await Triple.query()
+      .where('predicateId', OWNS_X_COM_ACCOUNT_ATOM_ID)
+      .preload('object', (query) => {
+        query.preload('atomIpfsData')
+      })
+      .preload('subject', (query) => {
+        query.preload('atomIpfsData')
+      })
+      .preload('predicate', (query) => {
+        query.preload('atomIpfsData')
+      })
+      .preload('vault') // Preload the vault to access its properties
+      .whereHas('object', (query) => {
+        query.whereHas('atomIpfsData', (ipfsQuery) => {
+          ipfsQuery.whereRaw("contents->>'name' = ?", [username])
+        })
+      })
+      // Use raw SQL to calculate the product and order by it
+      .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."id" = "Triple"."vaultId") DESC')
+      .limit(limit)
+
+    // from those triples, get a list of unique subjectIds and objectIds
+    // but prevent duplicates
+    const uniqueSubjectIds = [...new Set(triples.map(triple => triple.subjectId))]
+    const uniqueObjectIds = [...new Set(triples.map(triple => triple.objectId))]
+
+    // now join those two but prevent duplicates
+    const uniqueIds = [...new Set([...uniqueSubjectIds, ...uniqueObjectIds])]
+
+    // get the atoms for the uniqueIds and their vaults and sort by atomVault currentSharePrice * totalShares
+    const atoms = await Atom.query()
+      .whereIn('id', uniqueIds)
+      .preload('vault') // Directly preload the vault relationship
+      .preload('atomIpfsData')
+      .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."atomId" = "Atom"."id") DESC')
+
+    return response.json(atoms)
   }
 
   public async checkUser({ request, response }: HttpContextContract) {
