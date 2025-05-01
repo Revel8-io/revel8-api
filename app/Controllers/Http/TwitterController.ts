@@ -97,6 +97,26 @@ export default class Twitter {
     return response.json(xUser)
   }
 
+  public async checkUser({ request, response }: HttpContextContract) {
+    const body = request.body()
+    const cachedUser = await Redis.get(`xComUser:${body.username}`)
+    const parsedUser = cachedUser ? JSON.parse(cachedUser) : null
+    // check that each key and value pair in body matches parsedUser
+    const isMatch = Object.keys(body).every(key => parsedUser[key] === body[key])
+    if (isMatch) return response.json(parsedUser)
+    console.log(`${body.username} is not a match, getting user from X.com API`)
+    // is not a match, so we need to get the user from x
+    const xUser = await xApiAuth.get(`/users/by/username/${body.username}`)
+    const formattedXUser = {
+      id: xUser.data.id,
+      username: xUser.data.username,
+      name: xUser.data.name,
+      profileImageUrl: xUser.data.profile_image_url
+    }
+    await Redis.set(`xComUser:${body.username}`, JSON.stringify(formattedXUser), 'EX', 60 * 60 * 24 * 7)
+    return response.json(formattedXUser)
+  }
+
 
   public async getRequestToken({ request, response }: HttpContextContract) {
     // get rand query param
