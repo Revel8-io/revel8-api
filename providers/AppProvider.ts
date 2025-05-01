@@ -24,7 +24,11 @@ export default class AppProvider {
     populateImageFiles()
     getContractConfig()
     setInterval(() => {
-      axios.get('http://localhost:3333/generate-json-data')
+      try {
+        axios.get('http://localhost:3333/generate-json-data')
+      } catch (error) {
+        console.error('Error generating JSON data', error)
+      }
     }, 1000 * 60 * 10)
   }
 
