@@ -14,8 +14,8 @@ export default class NotesController {
       author: schema.string(),
       target: schema.string(),
       note: schema.string(),
-      relatedTweetUrl: schema.string(),
-      relatedTweetId: schema.string(),
+      relatedTweetUrl: schema.string.optional(),
+      relatedTweetId: schema.string.optional(),
     })
 
     const payload = await request.validate({ schema: createNoteSchema })
@@ -37,8 +37,8 @@ export default class NotesController {
       author: schema.string(),
       target: schema.string(),
       note: schema.string(),
-      relatedTweetUrl: schema.string(),
-      relatedTweetId: schema.string(),
+      relatedTweetUrl: schema.string.optional(),
+      relatedTweetId: schema.string.optional(),
     })
 
     const payload = await request.validate({ schema: createNoteSchema })
