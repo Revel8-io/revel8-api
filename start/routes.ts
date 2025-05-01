@@ -63,6 +63,7 @@ Route.get('atoms/multiple/:ids', 'AtomsController.showMultiple')
 Route.resource('atoms', 'AtomsController').apiOnly()
 Route.get('atoms-with-contents/:atomIds', 'AtomsController.showWithContents')
 Route.get('atoms/:atomId/all', 'AtomsController.getAtomContentsWithVaults')
+Route.get('atoms/:atomId/relevant-images', 'AtomsController.getRelevantImages')
 
 // exchange rates
 Route.get('exchange-rates', 'MiscController.getExchangeRates')

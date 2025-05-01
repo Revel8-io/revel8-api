@@ -3,11 +3,12 @@ import Database from '@ioc:Adonis/Lucid/Database'
 import Redis from '@ioc:Adonis/Addons/Redis'
 import fs from 'fs/promises'
 
-import { CONFIG } from '../../../util/'
+import { CONFIG } from '../../../common/constants/web3'
 import Atom from 'App/Models/Atom'
 import { xApiAuth } from './TwitterController'
+import Triple from 'App/Models/Triple'
 
-const { IS_ATOMS, IS_RELEVANT_X_ATOM } = CONFIG
+const { IS_ATOMS, IS_RELEVANT_X_ATOM, HAS_RELATED_IMAGE_VAULT_ID } = CONFIG
 
 export default class AtomsController {
   public async index({ request, response }: HttpContextContract) {
@@ -583,6 +584,25 @@ export default class AtomsController {
       .orderByRaw('("Vault"."totalShares" / POWER(10, 18)) * ("Vault"."currentSharePrice" / POWER(10, 18)) DESC')
     console.log(`getXUserAtom for ${username} rows.length`, rows.length)
     return response.json(rows)
+  }
+
+  public async getRelevantImages({ params, response }: HttpContextContract) {
+    const { atomId } = params
+    console.log('atomId', atomId)
+    console.log('HAS_RELATED_IMAGE_VAULT_ID', HAS_RELATED_IMAGE_VAULT_ID)
+    // get all triples with predicateId that matches HAS_RELATED_IMAGE_VAULT_ID
+    // and whose subjectId matches atomId
+    const triples = await Triple.query()
+      .where('predicateId', HAS_RELATED_IMAGE_VAULT_ID)
+      .where('subjectId', atomId)
+      .preload('vault')
+      .preload('object', (query) => {
+        query.preload('atomIpfsData')
+      })
+      // Join the Vault table to use its columns in ordering
+      .join('Vault', 'Triple.vaultId', 'Vault.id')
+      .orderByRaw('("Vault"."totalShares" / POWER(10, 18)) * ("Vault"."currentSharePrice" / POWER(10, 18)) DESC')
+    return response.json(triples)
   }
 
   public async generateJSONData({ response }: HttpContextContract) {
