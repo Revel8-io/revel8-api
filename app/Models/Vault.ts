@@ -1,7 +1,8 @@
-import { column, HasOne, hasOne, BelongsTo, belongsTo } from '@ioc:Adonis/Lucid/Orm'
+import { column, HasOne, hasOne, BelongsTo, belongsTo, hasMany, HasMany } from '@ioc:Adonis/Lucid/Orm'
 import Atom from './Atom'
 import Triple from './Triple'
 import AppBaseModel from './AppBaseModel'
+import Position from './Position'
 
 // id, atomId, tripleId, totalShares, currentSharePrice, positionCount
 export default class Vault extends AppBaseModel {
@@ -30,4 +31,8 @@ export default class Vault extends AppBaseModel {
 
   @column({ columnName: 'positionCount' })
   public positionCount: number
+
+  // relationship for positions
+  @hasMany(() => Position, { foreignKey: 'vaultId', localKey: 'id' })
+  public positions: HasMany<typeof Position>
 }

@@ -51,6 +51,34 @@ export default class TriplesController {
     return response.json(triples)
   }
 
+  // atom can be ANY position (subject, predicate, object)
+  public async getAtomRelevantTriples({ params, response }: HttpContextContract) {
+    const { atomId } = params
+    const triples = await Triple.query()
+      .where('subjectId', atomId)
+      .orWhere('predicateId', atomId)
+      .orWhere('objectId', atomId)
+      .preload('subject', (query) => {
+        query.preload('vault')
+        query.preload('atomIpfsData')
+      })
+      .preload('predicate', (query) => {
+        query.preload('vault')
+        query.preload('atomIpfsData')
+      })
+      .preload('object', (query) => {
+        query.preload('vault')
+        query.preload('atomIpfsData')
+      })
+      .preload('vault', (query) => {
+        query.preload('positions')
+      })
+      .preload('counterVault', (query) => {
+        query.preload('positions')
+      })
+    return response.json(triples)
+  }
+
   public async getTriplesRankingsWithContents({ params, response }: HttpContextContract) {
     const { atoms } = params
     const [subjectId, predicateId, objectId] = atoms.split(',')
