@@ -27,6 +27,10 @@ Route.get('/', async () => {
 // Users
 Route.resource('users', 'UsersController').apiOnly()
 
+// HexValues
+Route.get('hex/:hexId/atoms', 'HexesController.getHexAtoms')
+Route.get('hex/:hexId/triples', 'HexesController.getHexTriples')
+
 // Notes
 Route.get('notes/author-target', 'NotesController.getAuthorTargetNotes')
 Route.post('notes/store-get', 'NotesController.storeAndGetAuthorTargetNotes')
