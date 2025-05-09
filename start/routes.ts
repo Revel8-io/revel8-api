@@ -76,12 +76,14 @@ Route.get('contract-config', 'MiscController.getContractConfig')
 Route.get('triples/atom/:atomId', 'TriplesController.getTriplesByAtomId')
 Route.get('triples/rankings/:atoms', 'TriplesController.getTriplesRankingsWithContents')
 Route.get('triples/atom/:atomId/relevant', 'TriplesController.getAtomRelevantTriples')
+Route.get('triples/vault/:vaultId', 'TriplesController.getTripleByVaultId')
 Route.resource('triples', 'TriplesController').apiOnly()
 
 // positions
 Route.get('positions/vault/:vaultId', 'PositionsController.getPositionsByVaultId')
 Route.get('positions/triple/:tripleId', 'PositionsController.getPositionsByTripleId')
 Route.get('positions/atom/:atomId', 'PositionsController.getPositionsByAtomId')
+Route.get('positions/triple/:tripleId/account/:accountId', 'PositionsController.getPositionsByTripleIdAndAccountId')
 Route.resource('positions', 'PositionsController').apiOnly()
 
 // Signals

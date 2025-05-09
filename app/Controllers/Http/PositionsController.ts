@@ -8,6 +8,10 @@ export default class PositionsController {
     // get sort and orderBy and page from query
     const { page } = request.qs()
     const tripleId = request.param('tripleId')
+    console.log('getPositionsByTripleId', {
+      tripleId,
+      page
+    })
 
     const [triple] = await Triple.query()
       .where('id', tripleId)
@@ -50,17 +54,21 @@ export default class PositionsController {
       vaultPromise,
       counterVaultPromise
     ])
+    console.log('getPositionsByTripleId', {
+      maxSharePosition,
+      maxShareCounterPosition,
 
+    })
     // Attach the totalShares max value from the vault
     const result = positions.toJSON()
     const counterResult = counterPositions.toJSON()
     return response.json({
-      positions: result,
-      maxSharePosition: maxSharePosition?.shares,
-      counterPositions: counterResult,
-      maxShareCounterPosition: maxShareCounterPosition?.shares,
       vault: vaults[0],
-      counterVault: counterVaults[0]
+      counterVault: counterVaults[0],
+      positions: result,
+      counterPositions: counterResult,
+      maxSharePosition: maxSharePosition?.shares,
+      maxShareCounterPosition: maxShareCounterPosition?.shares,
     })
   }
 
@@ -141,6 +149,28 @@ export default class PositionsController {
       maxSharePosition: maxSharePosition?.shares,
       counterPositions: counterResult,
       maxShareCounterPosition: maxShareCounterPosition?.shares
+    })
+  }
+
+  getPositionsByTripleIdAndAccountId = async ({ request, response }: HttpContextContract) => {
+    const { tripleId, accountId } = request.params()
+
+    // get vault and counterVaults for the triple
+    const triple = await Triple.find(tripleId)
+    const vault = await Vault.find(triple?.vaultId)
+    const counterVault = await Vault.find(triple?.counterVaultId)
+
+    if (!vault) return response.status(404).json({ error: 'Vault not found' })
+    if (!counterVault) return response.status(404).json({ error: 'Counter vault not found (may not be a triple)' })
+    // get positions for the vault
+    const accountPositions = await Position.query()
+      .whereIn('vaultId', [vault.id, counterVault.id])
+      .whereIn('accountId', [accountId, accountId.toLowerCase()])
+      .preload('vault')
+      .orderBy('shares', 'desc')
+
+    return response.json({
+      positions: accountPositions,
     })
   }
 }

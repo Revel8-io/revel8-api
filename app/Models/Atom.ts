@@ -1,7 +1,8 @@
-import { column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
+import { column, hasMany, HasMany, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import Vault from './Vault'
 import AtomIpfsData from './AtomIpfsData'
 import AppBaseModel from './AppBaseModel'
+import Triple from './Triple'
 // id, walletId, creatorId, vaultId, data, type, emoji, label, image, valueId, blockNumber, blockTimestamp, transactionHash
 
 export default class Atom extends AppBaseModel {
@@ -27,6 +28,24 @@ export default class Atom extends AppBaseModel {
 
   @column({ columnName: 'data' })
   public data: string
+
+  @hasMany(() => Triple, {
+    foreignKey: 'subjectId',
+    localKey: 'id',
+  })
+  public subjectTriples: HasMany<typeof Triple>
+
+  @hasMany(() => Triple, {
+    foreignKey: 'predicateId',
+    localKey: 'id',
+  })
+  public predicateTriples: HasMany<typeof Triple>
+
+  @hasMany(() => Triple, {
+    foreignKey: 'objectId',
+    localKey: 'id',
+  })
+  public objectTriples: HasMany<typeof Triple>
 
   @column({ columnName: 'type' })
   public type: string
