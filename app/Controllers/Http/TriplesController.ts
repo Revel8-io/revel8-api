@@ -104,4 +104,13 @@ export default class TriplesController {
       .preload('counterVault')
     return response.json(triples)
   }
+
+  // gets triple by either vaultId or counterVaultId
+  public async getTripleByVaultId({ params, response }: HttpContextContract) {
+    const { vaultId } = params
+    const triple = await Triple.query()
+      .where('vaultId', vaultId)
+      .orWhere('counterVaultId', vaultId)
+    return response.json(triple)
+  }
 }
