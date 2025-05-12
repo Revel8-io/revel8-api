@@ -71,10 +71,15 @@ export default class AtomsController {
       sortByMostRecent = !sortByVaultValue && !sortByPositionCount && !sortByAlphabetical
     }
 
-    // Start query with the Atom model
     const query = Atom.query()
-      .preload('atomIpfsData') // Preload related data
+      .preload('atomIpfsData')
       .preload('vault')
+      .where((builder) => {
+        builder.where('data', 'like', '0x%');
+        builder.orWhereHas('atomIpfsData', (ipfsBuilder) => {
+          ipfsBuilder.whereRaw("contents->>'name' IS NOT NULL AND contents->>'name' <> ''");
+        });
+      });
 
     // Conditionally join tables ONLY if needed for sorting
     // We need joins to make related table columns available for orderBy
