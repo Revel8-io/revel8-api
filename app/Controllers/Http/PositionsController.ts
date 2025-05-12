@@ -26,7 +26,6 @@ export default class PositionsController {
     // Get positions for the vault with pagination
     const positionsPromise = Position.query()
       .where('vaultId', triple.vaultId)
-      .preload('vault')
       .orderBy('shares', 'desc')
       .paginate(page || 1, 80)
 
