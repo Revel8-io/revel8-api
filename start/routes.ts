@@ -92,3 +92,4 @@ Route.resource('signals', 'SignalsController.index').apiOnly()
 
 // Browser
 Route.get('browser/webpage/info', 'BrowserController.getWebpageInfo')
+Route.get('browser/webpage/screenshot', 'BrowserController.getWebpageScreenshot')
