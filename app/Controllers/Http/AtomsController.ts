@@ -609,7 +609,11 @@ export default class AtomsController {
       // do something url = name, description, url
       switch (fullType) {
         case 'url':
-        atoms = await getRelevantAtomsViaUrl(queryTerm, limit)
+          atoms = await getRelevantAtomsViaUrl(queryTerm, limit)
+          break
+        case 'evmAddress':
+          atoms = await getRelevantAtomsViaEvmAddress(queryTerm, limit)
+          break
       }
       // address = name, address, description
     }
@@ -709,5 +713,15 @@ const getRelevantAtomsViaUrl = async (queryTerm: string, limit: number) => {
     .preload('atomIpfsData')
     .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."atomId" = "Atom"."id") DESC')
     .limit(limit)
+  return atoms
+}
+
+const getRelevantAtomsViaEvmAddress = async (queryTerm: string, limit: number) => {
+  const atoms = await Atom.query()
+    .whereHas('atomIpfsData', (builder) => {
+      builder.whereRaw("contents->>'evmAddress' = ?", [queryTerm])
+    })
+    .preload('vault')
+    .preload('atomIpfsData')
   return atoms
 }
