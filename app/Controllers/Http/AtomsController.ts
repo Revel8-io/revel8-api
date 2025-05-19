@@ -719,9 +719,12 @@ const getRelevantAtomsViaUrl = async (queryTerm: string, limit: number) => {
 const getRelevantAtomsViaEvmAddress = async (queryTerm: string, limit: number) => {
   const atoms = await Atom.query()
     .whereHas('atomIpfsData', (builder) => {
-      builder.whereRaw("contents->>'evmAddress' = ?", [queryTerm])
+      builder.whereRaw("contents->>'evmAddress' ILIKE ?", [`%${queryTerm}%`])
     })
+    .orWhere('data', 'like', `%${queryTerm}%`)
     .preload('vault')
     .preload('atomIpfsData')
+    .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."atomId" = "Atom"."id") DESC')
+  console.log('atoms', atoms)
   return atoms
 }
