@@ -592,57 +592,27 @@ export default class AtomsController {
   }
 
   public async getRelevantAtomsByQueryString({ request, response }: HttpContextContract) {
-    console.log('getRelevantAtomsByQueryString')
     const { fullQuery: fullQuery, limit = 10 } = request.qs()
-    console.log('fullQuery', fullQuery)
     const [fullType, queryTerm] = fullQuery.split('|')
-    const relevantPredicate = TARGET_TYPES[fullType]
 
     console.log('getRelevantAtomsByQueryString', {
       fullQuery,
       fullType,
       queryTerm,
-      relevantPredicate
     })
     // will also need to consider counterVault data
-    const triples = await Triple.query()
-      .where('predicateId', relevantPredicate)
-      .preload('object', (query) => {
-        query.preload('atomIpfsData')
-      })
-      .preload('subject', (query) => {
-        query.preload('atomIpfsData')
-      })
-      .preload('predicate', (query) => {
-        query.preload('atomIpfsData')
-      })
-      .preload('vault') // Preload the vault to access its properties
-      .whereHas('object', (query) => {
-        query.whereHas('atomIpfsData', (ipfsQuery) => {
-          ipfsQuery.whereRaw("contents->>'name' = ?", [queryTerm])
-        })
-      })
-      // Use raw SQL to calculate the product and order by it
-      .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."id" = "Triple"."vaultId") DESC')
-      .limit(limit)
-
-    console.log('triples', triples)
-    // from those triples, get a list of unique subjectIds and objectIds
-    // but prevent duplicates
-    const uniqueSubjectIds = [...new Set(triples.map(triple => triple.subjectId))]
-    const uniqueObjectIds = [...new Set(triples.map(triple => triple.objectId))]
-
-    // now join those two but prevent duplicates
-    const uniqueIds = [...new Set([...uniqueSubjectIds, ...uniqueObjectIds])]
-    console.log('uniqueIds', uniqueIds)
-
-    // get the atoms for the uniqueIds and their vaults and sort by atomVault currentSharePrice * totalShares
-    const atoms = await Atom.query()
-      .whereIn('id', uniqueIds)
-      .preload('vault') // Directly preload the vault relationship
-      .preload('atomIpfsData')
-      .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."atomId" = "Atom"."id") DESC')
-
+    const relevantPredicate = TARGET_TYPES[fullType]
+    let atoms = []
+    if (relevantPredicate) {
+      atoms = await getRelevantAtomsViaPredicate(relevantPredicate, queryTerm, limit)
+    } else {
+      // do something url = name, description, url
+      switch (fullType) {
+        case 'url':
+        atoms = await getRelevantAtomsViaUrl(queryTerm, limit)
+      }
+      // address = name, address, description
+    }
     return response.json(atoms)
   }
 
@@ -688,3 +658,56 @@ const actualOrderByMapping = {
   'AtomIpfsData.contents->>name': "AtomIpfsData.contents->>'name'"
 }
 
+const getRelevantAtomsViaPredicate = async (relevantPredicate: string, queryTerm: string, limit: number) => {
+  const triples = await Triple.query()
+    .where('predicateId', relevantPredicate)
+    .preload('object', (query) => {
+      query.preload('atomIpfsData')
+    })
+    .preload('subject', (query) => {
+      query.preload('atomIpfsData')
+    })
+    .preload('predicate', (query) => {
+      query.preload('atomIpfsData')
+    })
+    .preload('vault') // Preload the vault to access its properties
+    .whereHas('object', (query) => {
+      query.whereHas('atomIpfsData', (ipfsQuery) => {
+        ipfsQuery.whereRaw("contents->>'name' = ?", [queryTerm])
+      })
+    })
+    // Use raw SQL to calculate the product and order by it
+    .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."id" = "Triple"."vaultId") DESC')
+    .limit(limit)
+
+  console.log('triples', triples)
+  // from those triples, get a list of unique subjectIds and objectIds
+  // but prevent duplicates
+  const uniqueSubjectIds = [...new Set(triples.map(triple => triple.subjectId))]
+  const uniqueObjectIds = [...new Set(triples.map(triple => triple.objectId))]
+
+  // now join those two but prevent duplicates
+  const uniqueIds = [...new Set([...uniqueSubjectIds, ...uniqueObjectIds])]
+
+  // get the atoms for the uniqueIds and their vaults and sort by atomVault currentSharePrice * totalShares
+  const atoms = await Atom.query()
+    .whereIn('id', uniqueIds)
+    .preload('vault') // Directly preload the vault relationship
+    .preload('atomIpfsData')
+    .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."atomId" = "Atom"."id") DESC')
+
+  return atoms
+}
+
+const getRelevantAtomsViaUrl = async (queryTerm: string, limit: number) => {
+  console.log('getRelevantAtomsViaUrl', queryTerm)
+  const atoms = await Atom.query()
+    .whereHas('atomIpfsData', (builder) => {
+      builder.whereRaw("contents->>'url' = ?", [queryTerm])
+    })
+    .preload('vault')
+    .preload('atomIpfsData')
+    .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."atomId" = "Atom"."id") DESC')
+    .limit(limit)
+  return atoms
+}
