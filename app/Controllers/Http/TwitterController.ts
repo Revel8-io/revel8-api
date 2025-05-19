@@ -103,6 +103,7 @@ export default class Twitter {
     return response.json(xUser)
   }
 
+  // twitter/top-user-atoms
   public async getTopUserAtoms({ request, response }: HttpContextContract) {
     const { username, limit = 10 } = request.qs()
 

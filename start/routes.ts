@@ -57,6 +57,7 @@ Route.post('ipfs/image-by-url', 'IpfsController.createImageByUrl')
 Route.post('ipfs/upload-json', 'IpfsController.uploadJson')
 
 // atoms
+Route.get('atoms/relevant/by-full-query', 'AtomsController.getRelevantAtomsByQueryString')
 Route.get('atoms/search', 'AtomsController.searchAtomsWithContentsVaults')
 Route.get('atoms/most-relevant-x', 'AtomsController.getMostRelevantXAtoms')
 Route.get('x/user-atoms', 'AtomsController.getXUserAtom')

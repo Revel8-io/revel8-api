@@ -8,7 +8,7 @@ import Atom from 'App/Models/Atom'
 import { xApiAuth } from './TwitterController'
 import Triple from 'App/Models/Triple'
 
-const { IS_ATOMS, IS_RELEVANT_X_ATOM, HAS_RELATED_IMAGE_VAULT_ID } = CONFIG
+const { IS_ATOMS, IS_RELEVANT_X_ATOM, HAS_RELATED_IMAGE_VAULT_ID, OWNS_X_COM_ACCOUNT_ATOM_ID, TARGET_TYPES } = CONFIG
 
 export default class AtomsController {
   public async index({ request, response }: HttpContextContract) {
@@ -589,6 +589,61 @@ export default class AtomsController {
       .orderByRaw('("Vault"."totalShares" / POWER(10, 18)) * ("Vault"."currentSharePrice" / POWER(10, 18)) DESC')
     console.log(`getXUserAtom for ${username} rows.length`, rows.length)
     return response.json(rows)
+  }
+
+  public async getRelevantAtomsByQueryString({ request, response }: HttpContextContract) {
+    console.log('getRelevantAtomsByQueryString')
+    const { fullQuery: fullQuery, limit = 10 } = request.qs()
+    console.log('fullQuery', fullQuery)
+    const [fullType, queryTerm] = fullQuery.split('|')
+    const relevantPredicate = TARGET_TYPES[fullType]
+
+    console.log('getRelevantAtomsByQueryString', {
+      fullQuery,
+      fullType,
+      queryTerm,
+      relevantPredicate
+    })
+    // will also need to consider counterVault data
+    const triples = await Triple.query()
+      .where('predicateId', relevantPredicate)
+      .preload('object', (query) => {
+        query.preload('atomIpfsData')
+      })
+      .preload('subject', (query) => {
+        query.preload('atomIpfsData')
+      })
+      .preload('predicate', (query) => {
+        query.preload('atomIpfsData')
+      })
+      .preload('vault') // Preload the vault to access its properties
+      .whereHas('object', (query) => {
+        query.whereHas('atomIpfsData', (ipfsQuery) => {
+          ipfsQuery.whereRaw("contents->>'name' = ?", [queryTerm])
+        })
+      })
+      // Use raw SQL to calculate the product and order by it
+      .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."id" = "Triple"."vaultId") DESC')
+      .limit(limit)
+
+    console.log('triples', triples)
+    // from those triples, get a list of unique subjectIds and objectIds
+    // but prevent duplicates
+    const uniqueSubjectIds = [...new Set(triples.map(triple => triple.subjectId))]
+    const uniqueObjectIds = [...new Set(triples.map(triple => triple.objectId))]
+
+    // now join those two but prevent duplicates
+    const uniqueIds = [...new Set([...uniqueSubjectIds, ...uniqueObjectIds])]
+    console.log('uniqueIds', uniqueIds)
+
+    // get the atoms for the uniqueIds and their vaults and sort by atomVault currentSharePrice * totalShares
+    const atoms = await Atom.query()
+      .whereIn('id', uniqueIds)
+      .preload('vault') // Directly preload the vault relationship
+      .preload('atomIpfsData')
+      .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."atomId" = "Atom"."id") DESC')
+
+    return response.json(atoms)
   }
 
   public async getRelevantImages({ params, response }: HttpContextContract) {
