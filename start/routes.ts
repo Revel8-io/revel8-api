@@ -30,6 +30,7 @@ Route.resource('users', 'UsersController').apiOnly()
 // HexValues
 Route.get('hex/:hexId/atoms', 'HexesController.getHexAtoms')
 Route.get('hex/:hexId/triples', 'HexesController.getHexTriples')
+Route.get('hex/top-evm-address-atoms', 'HexesController.getTopEvmAddressAtoms')
 
 // Notes
 Route.get('notes/author-target', 'NotesController.getAuthorTargetNotes')

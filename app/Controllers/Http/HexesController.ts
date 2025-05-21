@@ -40,4 +40,17 @@ export default class HexesController {
 
     return response.json(atoms)
   }
+
+  public getTopEvmAddressAtoms = async ({ request, response }: HttpContextContract) => {
+    const { evmAddress, limit = 10 } = request.qs()
+    const atoms = await Atom.query()
+      .whereHas('atomIpfsData', (builder) => {
+        builder.whereRaw("contents->>'evmAddress' = ?", [evmAddress])
+      })
+      .preload('vault')
+      .preload('atomIpfsData')
+      .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."atomId" = "Atom"."id") DESC')
+      .limit(limit)
+    return response.json(atoms)
+  }
 }
