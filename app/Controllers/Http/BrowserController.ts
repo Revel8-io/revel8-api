@@ -1,7 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-import puppeteer from 'puppeteer'
+import puppeteer from 'puppeteer-extra'
+import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 import fs from 'fs'
-import path from 'path'
 import { CONFIG } from '../../../common/constants/web3'
 
 export default class BrowserController {
@@ -10,6 +10,7 @@ export default class BrowserController {
     console.log('[getPageMeta] executing')
 
     const browser = await puppeteer.launch()
+    puppeteer.use(StealthPlugin())
     console.log('[getPageMeta] browser', browser)
 
     const page = await browser.newPage()
