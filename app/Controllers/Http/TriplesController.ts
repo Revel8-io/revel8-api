@@ -76,6 +76,7 @@ export default class TriplesController {
       .preload('counterVault', (query) => {
         query.preload('positions')
       })
+      .orderByRaw('(SELECT "totalShares"::numeric * "currentSharePrice"::numeric FROM "Vault" WHERE "Vault"."id" = "Triple"."vaultId") DESC')
     return response.json(triples)
   }
 
