@@ -45,7 +45,7 @@ export default class HexesController {
     const { evmAddress, limit = 10 } = request.qs()
     const atoms = await Atom.query()
       .whereHas('atomIpfsData', (builder) => {
-        builder.whereRaw("contents->>'evmAddress' = ?", [evmAddress])
+        builder.whereRaw("contents->>'name' = ?", [evmAddress])
       })
       .preload('vault')
       .preload('atomIpfsData')
