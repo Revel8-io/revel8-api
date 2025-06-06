@@ -1,6 +1,5 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { pinata } from '../../../providers/routines'
-import axios from 'axios'
 import fs from 'fs'
 import baseX from '@multiformats/base-x'
 import { createHash } from 'crypto'

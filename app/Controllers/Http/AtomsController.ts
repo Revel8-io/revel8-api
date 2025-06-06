@@ -1,144 +1,16 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
-import Redis from '@ioc:Adonis/Addons/Redis'
 import fs from 'fs/promises'
 
 import { CONFIG } from '../../../common/constants/web3'
 import Atom from 'App/Models/Atom'
-import { xApiAuth } from './TwitterController'
 import Triple from 'App/Models/Triple'
 
 const { IS_ATOMS, IS_RELEVANT_X_ATOM, HAS_RELATED_IMAGE_VAULT_ID, OWNS_X_COM_ACCOUNT_ATOM_ID, TARGET_TYPES } = CONFIG
 
 export default class AtomsController {
-  public async index({ request, response }: HttpContextContract) {
-    // Parse pagination and sorting parameters with safe defaults
-    let page = 1;
-    let perPage = 20;
-    try {
-      page = parseInt(request.qs().page || '1')
-      if (isNaN(page) || page < 1) page = 1
-
-      perPage = parseInt(request.qs().perPage || '20')
-      if (isNaN(perPage) || perPage < 1) perPage = 20
-    } catch (error) {
-      console.error('Pagination parameter error:', error)
-    }
-
-    // Get sorting parameters - prioritize 'sort' special case
-    const sort = request.qs().sort
-
-    // Only use orderBy/direction as fallback if sort is not specified
-    let orderBy = request.qs().orderBy || 'blockTimestamp'
-    const direction = request.qs().direction || 'desc'
-    const order = direction === 'asc' ? 'asc' : 'desc'
-
-    // Determine sorting method based on sort parameter first
-    let sortByVaultValue = false
-    let sortByPositionCount = false
-    let sortByAlphabetical = false
-    let sortByMostRecent = true // Default
-
-    // If sort parameter is provided, it takes precedence
-    if (sort) {
-      // Reset default sorting
-      sortByMostRecent = false
-
-      switch (sort) {
-        case 'most-recent':
-          sortByMostRecent = true
-          break
-        case 'highest-stake':
-          sortByVaultValue = true
-          break
-        case 'popularity':
-          sortByPositionCount = true
-          break
-        case 'alphabetical':
-          sortByAlphabetical = true
-          break
-        default:
-          // If sort is not one of our special cases, fall back to default
-          sortByMostRecent = true
-      }
-    } else {
-      // Sort parameter not provided, determine sorting method from orderBy (legacy behavior)
-      // Check legacy orderBy values if needed
-      sortByVaultValue = request.qs().sortByVaultValue === 'true' || orderBy === 'vault.totalShares' // Adjust legacy check if needed
-      sortByPositionCount = orderBy === 'positionCount' || orderBy === 'vault.positionCount'
-      sortByAlphabetical = orderBy === 'atomIpfsData.contents>>name'
-      // Determine if most recent based on other flags
-      sortByMostRecent = !sortByVaultValue && !sortByPositionCount && !sortByAlphabetical
-    }
-
-    const query = Atom.query()
-      .preload('atomIpfsData')
-      .preload('vault')
-      .where((builder) => {
-        builder.where('data', 'like', '0x%');
-        builder.orWhereHas('atomIpfsData', (ipfsBuilder) => {
-          ipfsBuilder.whereRaw("contents->>'name' IS NOT NULL AND contents->>'name' <> ''");
-        });
-      });
-
-    // Conditionally join tables ONLY if needed for sorting
-    // We need joins to make related table columns available for orderBy
-    if (sortByVaultValue || sortByPositionCount) {
-        // Use 'vaults' as alias if your table name is 'vaults' and relation is 'vault'
-        // Adjust 'vaults' to your actual Vault table name if different
-        query.leftJoin('Vault as Vault', 'Atom.vaultId', 'Vault.id')
-    }
-    if (sortByAlphabetical) {
-        // Adjust 'AtomIpfsData' to your actual table name if different
-        query.leftJoin('AtomIpfsData', 'Atom.id', 'AtomIpfsData.atomId')
-    }
-
-    // Apply the appropriate sorting
-    // Note: When joining, ensure column names are unambiguous (e.g., 'Vault.positionCount')
-    if (sortByVaultValue) {
-      // Sort by vault value (totalShares * currentSharePrice)
-      // Ensure 'Vault' alias matches the join alias
-      query.orderByRaw(`("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC / POWER(10, 18)) ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
-    } else if (sortByPositionCount) {
-      // Sort by position count using the joined table
-      // Ensure 'Vault' alias matches the join alias
-      query.orderBy('Vault.positionCount', order)
-    } else if (sortByAlphabetical) {
-      // Sort alphabetically by name using the joined table
-      query.orderByRaw(`AtomIpfsData.contents->>'name' ${order === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`)
-    } else { // Default or sortByMostRecent
-      // Sort by most recent (blockTimestamp on Atom model) - No join needed for this
-      // Explicitly qualify with model table name if needed, but usually not required here
-      query.orderBy('blockTimestamp', order) // Assumes 'blockTimestamp' is directly on the Atom model/table
-    }
-
-    // Execute query with pagination using Lucid's paginate method
-    // Ensure page and perPage are valid numbers
-    const safePerPage = Math.max(1, perPage)
-    const safePage = Math.max(1, page)
-
-    const atoms = await query.paginate(safePage, safePerPage)
-    console.log('atoms', atoms)
-    // Return the paginated result directly
-    // Lucid's paginate result includes meta and data
-    return response.json(atoms)
-  }
-
   public async searchAtomsWithContentsVaults({ params, request, response }: HttpContextContract) {
-    const { q } = request.qs()
-
-    // Parse pagination parameters with safe defaults
-    let page = 1
-    let perPage = 20
-    try {
-      page = parseInt(request.input('page', '1'))
-      if (isNaN(page) || page < 1) page = 1
-
-      perPage = parseInt(request.input('perPage', '20'))
-      if (isNaN(perPage) || perPage < 1) perPage = 20
-    } catch (error) {
-      console.error('Pagination parameter error:', error)
-    }
+    const { q, page = 1, limit = 40 } = request.qs()
 
     // Get sorting parameters
     const sort = request.input('sort', 'most-recent')
@@ -152,13 +24,6 @@ export default class AtomsController {
 
     // Add search logic if query is provided
     if (q) {
-      const isNumeric = !isNaN(Number(q)) && !isNaN(parseFloat(q))
-
-      if (isNumeric) {
-        const atomId = parseInt(q)
-        atomsQuery.where('id', atomId)
-      }
-
       // Search in atomIpfsData contents (case-insensitive)
       atomsQuery.orWhereHas('atomIpfsData', (builder) => {
         builder.whereRaw("CAST(contents AS TEXT) ILIKE ?", [`%${q}%`])
@@ -193,7 +58,7 @@ export default class AtomsController {
     }
 
     // Execute query with pagination
-    const atoms = await atomsQuery.paginate(page, perPage)
+    const atoms = await atomsQuery.paginate(page, limit)
 
     return response.json(atoms)
   }
@@ -238,18 +103,17 @@ export default class AtomsController {
     const { ids } = params
 
     if (!ids) {
-      return response.badRequest({ message: 'Missing atom IDs parameter.' })
+      return response.status(400).json({ message: 'Missing atom IDs parameter.' })
     }
 
-    const atomIdsArray = ids.split(',').map(id => parseInt(id.trim(), 10))
-
-    // Validate IDs
-    if (atomIdsArray.some(isNaN)) {
-      return response.badRequest({ message: 'Invalid atom IDs provided. IDs must be numeric.' })
-    }
+    const atomIdsArray = ids.split(',').map(id => {
+      const parsedId = parseInt(id.trim(), 10)
+      if (isNaN(parsedId)) return response.status(400).json({ message: `Invalid atom ID '${id}' provided. IDs must be numeric.` })
+      return parsedId
+    })
 
     if (atomIdsArray.length === 0) {
-        return response.json([]) // Return empty array if no valid IDs provided
+      return response.json([])
     }
 
     try {
@@ -281,9 +145,10 @@ export default class AtomsController {
     return response.json(sortedAtoms)
   }
 
+
+  // keep using or no? Used on Explorer Atoms page
   public async getAtomContentsWithVaults({ params, response }: HttpContextContract) {
     const { atomId } = params
-
     // Try using the Atom model first (better structure)
     try {
       const atom = await Atom.query()
@@ -359,120 +224,39 @@ export default class AtomsController {
     return response.json(result)
   }
 
-  public async getMostRelevantXAtoms({ response }: HttpContextContract) {
-    const { rows } = await Database
-      .rawQuery(`SELECT
-            "Triple"."subjectId", "Triple"."vaultId", "Triple"."counterVaultId",
-            "Vault"."totalShares" as "vaultTotalShares", "Vault"."currentSharePrice" as "vaultCurrentSharePrice", "Vault"."atomId" as "vaultAtomId", "Vault"."tripleId" as "vaultTripleId", "Vault"."positionCount" as "vaultPositionCount",
-            "counterVault"."totalShares" as "counterVaultTotalShares", "counterVault"."currentSharePrice" as "counterVaultCurrentSharePrice", "counterVault"."atomId" as "counterVaultAtomId", "counterVault"."tripleId" as "counterVaultTripleId", "counterVault"."positionCount" as "counterVaultPositionCount",
-            AtomIpfsData.contents as "contents", AtomIpfsData.imageFilename as "imageFilename"
-            FROM
-                "Triple"
-            JOIN
-                "Vault"
-            ON
-                "Triple"."vaultId" = "Vault".id
-            JOIN
-              "Vault" AS "counterVault"
-            ON
-              "Triple"."counterVaultId" = "counterVault"."id"
-            LEFT JOIN "AtomIpfsData"
-            ON "Triple"."subjectId" = "AtomIpfsData"."atomId"
-            WHERE AtomIpfsData.contents <> '{}'
-            AND
-                "Triple"."predicateId" IN (${IS_ATOMS.map(item=> "'" + item + "'").join(',')})
-                AND "Triple"."objectId" = '${IS_RELEVANT_X_ATOM}'
-            ORDER BY
-              GREATEST (
-                (("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC) / POWER(10, 18)),
-                (("counterVault"."totalShares"::NUMERIC / POWER(10, 18)) * ("counterVault"."currentSharePrice"::NUMERIC) / POWER(10, 18))
-              )
-            DESC LIMIT 20;`)
-    return response.json(rows)
-  }
+  // public async getMostRelevantXAtoms({ response }: HttpContextContract) {
+  //   const { rows } = await Database
+  //     .rawQuery(`SELECT
+  //           "Triple"."subjectId", "Triple"."vaultId", "Triple"."counterVaultId",
+  //           "Vault"."totalShares" as "vaultTotalShares", "Vault"."currentSharePrice" as "vaultCurrentSharePrice", "Vault"."atomId" as "vaultAtomId", "Vault"."tripleId" as "vaultTripleId", "Vault"."positionCount" as "vaultPositionCount",
+  //           "counterVault"."totalShares" as "counterVaultTotalShares", "counterVault"."currentSharePrice" as "counterVaultCurrentSharePrice", "counterVault"."atomId" as "counterVaultAtomId", "counterVault"."tripleId" as "counterVaultTripleId", "counterVault"."positionCount" as "counterVaultPositionCount",
+  //           AtomIpfsData.contents as "contents", AtomIpfsData.imageFilename as "imageFilename"
+  //           FROM
+  //               "Triple"
+  //           JOIN
+  //               "Vault"
+  //           ON
+  //               "Triple"."vaultId" = "Vault".id
+  //           JOIN
+  //             "Vault" AS "counterVault"
+  //           ON
+  //             "Triple"."counterVaultId" = "counterVault"."id"
+  //           LEFT JOIN "AtomIpfsData"
+  //           ON "Triple"."subjectId" = "AtomIpfsData"."atomId"
+  //           WHERE AtomIpfsData.contents <> '{}'
+  //           AND
+  //               "Triple"."predicateId" IN (${IS_ATOMS.map(item=> "'" + item + "'").join(',')})
+  //               AND "Triple"."objectId" = '${IS_RELEVANT_X_ATOM}'
+  //           ORDER BY
+  //             GREATEST (
+  //               (("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC) / POWER(10, 18)),
+  //               (("counterVault"."totalShares"::NUMERIC / POWER(10, 18)) * ("counterVault"."currentSharePrice"::NUMERIC) / POWER(10, 18))
+  //             )
+  //           DESC LIMIT 20;`)
+  //   return response.json(rows)
+  // }
 
-  public async getMostRelevantXAtomsWithContents({ response }: HttpContextContract) {
-    const { rows } = await Database
-      .rawQuery(`SELECT
-            "Triple"."subjectId", "Triple"."vaultId", "Triple"."counterVaultId",
-            "Vault"."totalShares" as "vaultTotalShares", "Vault"."currentSharePrice" as "vaultCurrentSharePrice", "Vault"."atomId" as "vaultAtomId", "Vault"."tripleId" as "vaultTripleId", "Vault"."positionCount" as "vaultPositionCount",
-            "counterVault"."totalShares" as "counterVaultTotalShares", "counterVault"."currentSharePrice" as "counterVaultCurrentSharePrice", "counterVault"."atomId" as "counterVaultAtomId", "counterVault"."tripleId" as "counterVaultTripleId", "counterVault"."positionCount" as "counterVaultPositionCount",
-            AtomIpfsData.contents as "contents"
-            FROM
-                "Triple"
-            JOIN
-                "Vault"
-            ON
-                "Triple"."vaultId" = "Vault".id
-            JOIN
-              "Vault" AS "counterVault"
-            ON
-              "Triple"."counterVaultId" = "counterVault"."id"
-            LEFT JOIN "AtomIpfsData"
-            ON "Triple"."subjectId" = "AtomIpfsData"."atomId"
-            WHERE AtomIpfsData.contents <> '{}'
-            AND
-                "Triple"."predicateId" IN (${IS_ATOMS.map(item=> "'" + item + "'").join(',')})
-                AND "Triple"."objectId" = '${IS_RELEVANT_X_ATOM}'
-            ORDER BY
-              GREATEST (
-                (("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC) / POWER(10, 18)),
-                (("counterVault"."totalShares"::NUMERIC / POWER(10, 18)) * ("counterVault"."currentSharePrice"::NUMERIC) / POWER(10, 18))
-              )
-            DESC LIMIT 20;`)
-    return response.json(rows)
-  }
-
-  // should probably
-  public async getXUserAtom({ request, response }: HttpContextContract) {
-    const { username } = request.all()
-    if (!username) {
-      return response.badRequest({ message: 'Missing username parameter.' })
-    }
-    const xComUserSerialized = await Redis.get(`xComUser:${username}`)
-    let xComUser = xComUserSerialized ? JSON.parse(xComUserSerialized) : null
-    const xComExistingUserIterator = await Redis.get('xComExistingUserIterator')
-    if (!xComUser) {
-      const xComUserIterator = await Redis.get('xComUserIterator')
-      setTimeout(() => {
-        console.warn('_______xComUserIterators_______', xComUserIterator, xComExistingUserIterator)
-      }, 2000)
-      await Redis.set('xComUserIterator', xComUserIterator ? parseInt(xComUserIterator) + 1 : 1)
-      const response = await xApiAuth.get(`/users/by/username/${username}`)
-      xComUser = response.data
-      await Redis.set(`xComUser:${username}`, JSON.stringify(xComUser), 'EX', 60 * 60 * 24 * 7)
-    } else {
-      await Redis.set('xComExistingUserIterator', xComExistingUserIterator ? parseInt(xComExistingUserIterator) + 1 : 1)
-    }
-    // get AtomIpfsData where contents.xUsername = username
-    console.log('xComUser', xComUser.data.username)
-    // then join Atom table on atomId
-    const rows = await Database.query()
-      .from('AtomIpfsData')
-      .whereRaw('contents @> ?::jsonb', [JSON.stringify({ name: username, xComUserId: xComUser.data.id })])
-      .join('Atom', 'AtomIpfsData.atomId', 'Atom.id')
-      .join('Vault', 'Vault.id', 'Atom.vaultId')
-      .select(
-        'AtomIpfsData.id',
-        'AtomIpfsData.atomId',
-        'AtomIpfsData.contents',
-        'AtomIpfsData.contentsAttempts',
-        'AtomIpfsData.imageAttempts',
-        'AtomIpfsData.imageHash',
-        'AtomIpfsData.imageFilename',
-        'Vault.totalShares',
-        'Vault.currentSharePrice',
-        'Vault.positionCount',
-        'Atom.blockNumber',
-        'Atom.blockTimestamp',
-        'Atom.vaultId',
-        'Atom.creatorId'
-      )
-      .orderByRaw('("Vault"."totalShares" / POWER(10, 18)) * ("Vault"."currentSharePrice" / POWER(10, 18)) DESC')
-    console.log(`getXUserAtom for ${username} rows.length`, rows.length)
-    return response.json(rows)
-  }
-
+  // not actually being used right now
   public async getRelevantAtomsByQueryString({ request, response }: HttpContextContract) {
     const { fullQuery: fullQuery, limit = 10 } = request.qs()
     const [fullType, queryTerm] = fullQuery.split('|')
@@ -528,22 +312,6 @@ export default class AtomsController {
     return response.status(200)
   }
 }
-
-const actualOrderByMapping = {
-  // most-recent
-  'blockTimestamp': 'blockTimestamp',
-
-  // popularity
-  'atom.vault.positionCount': 'Vault.positionCount',
-
-  // highest-stake
-  'atom.vault.totalShares * atom.vault.currentSharePrice':
-    '("Vault"."totalShares"::NUMERIC / POWER(10, 18)) * ("Vault"."currentSharePrice"::NUMERIC / POWER(10, 18))',
-
-  // alphabetical
-  'AtomIpfsData.contents->>name': "AtomIpfsData.contents->>'name'"
-}
-
 const getRelevantAtomsViaPredicate = async (relevantPredicate: string, queryTerm: string, limit: number) => {
   const triples = await Triple.query()
     .where('predicateId', relevantPredicate)
@@ -601,7 +369,7 @@ const getRelevantAtomsViaUrl = async (queryTerm: string, limit: number) => {
 const getRelevantAtomsViaEvmAddress = async (queryTerm: string, limit: number) => {
   const atoms = await Atom.query()
     .whereHas('atomIpfsData', (builder) => {
-      builder.whereRaw("contents->>'evmAddress' ILIKE ?", [`%${queryTerm}%`])
+      builder.whereRaw("contents->>'name' ILIKE ?", [`%${queryTerm}%`])
     })
     .orWhere('data', 'like', `%${queryTerm}%`)
     .preload('vault')
